@@ -156,12 +156,31 @@ function handleFormSelect(formType) {
     state.selectedForm = formType;
     const formConfig = CONFIG.forms[formType];
 
-    // Interest form doesn't support pre-fill, go directly to confirm
+    // Interest form doesn't support pre-fill, launch directly
     if (!formConfig.supportsPreFill) {
-        goToConfirm();
+        launchFormDirect();
     } else {
         goToSearch();
     }
+}
+
+// Launch form directly without confirm screen (for Interest form)
+function launchFormDirect() {
+    const formConfig = CONFIG.forms[state.selectedForm];
+    let url = CONFIG.baseUrl + formConfig.path;
+
+    // Add site parameter to pre-populate the site field
+    if (state.selectedSite) {
+        url += `?site=${encodeURIComponent(state.selectedSite)}`;
+    }
+
+    // Open in new tab/window
+    window.open(url, '_blank');
+
+    // Reset to site selection after a brief delay
+    setTimeout(() => {
+        goToSiteSelect();
+    }, 500);
 }
 
 // Search
@@ -271,10 +290,21 @@ function handleSearchInput(event) {
 function launchForm() {
     const formConfig = CONFIG.forms[state.selectedForm];
     let url = CONFIG.baseUrl + formConfig.path;
+    let params = [];
 
     // Add contactId parameter if a contact was selected
     if (state.selectedContact && formConfig.supportsPreFill) {
-        url += `?contactId=${state.selectedContact.id}`;
+        params.push(`contactId=${state.selectedContact.id}`);
+    }
+
+    // Add site parameter to pre-populate the site field
+    if (state.selectedSite) {
+        params.push(`site=${encodeURIComponent(state.selectedSite)}`);
+    }
+
+    // Append query string if we have parameters
+    if (params.length > 0) {
+        url += '?' + params.join('&');
     }
 
     // Open in new tab/window
