@@ -1,4 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
   <rect width="512" height="512" rx="80" fill="#0070d2"/>
-  <text x="256" y="320" font-family="Arial, sans-serif" font-size="280" font-weight="bold" text-anchor="middle" fill="white">B</text>
+
+  <!-- Bridge arch - symbolizing connection -->
+  <path d="M80 320 Q256 160 432 320" stroke="white" stroke-width="40" fill="none" stroke-linecap="round"/>
+
+  <!-- Bridge pillars -->
+  <rect x="100" y="300" width="40" height="120" rx="8" fill="white"/>
+  <rect x="372" y="300" width="40" height="120" rx="8" fill="white"/>
+
+  <!-- Bridge deck -->
+  <rect x="60" y="380" width="392" height="24" rx="8" fill="white"/>
+
+  <!-- People silhouettes on bridge - left person -->
+  <circle cx="180" cy="260" r="24" fill="white"/>
+  <path d="M180 284 L180 340 M160 310 L200 310 M180 340 L160 380 M180 340 L200 380" stroke="white" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- People silhouettes on bridge - right person -->
+  <circle cx="332" cy="260" r="24" fill="white"/>
+  <path d="M332 284 L332 340 M312 310 L352 310 M332 340 L312 380 M332 340 L352 380" stroke="white" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Connection/handshake arrow between people -->
+  <path d="M210 300 L302 300" stroke="#FFD700" stroke-width="8" stroke-linecap="round"/>
+  <path d="M290 288 L302 300 L290 312" stroke="#FFD700" stroke-width="8" stroke-linecap="round" fill="none"/>
 </svg>

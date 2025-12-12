@@ -33,12 +33,14 @@ const CONFIG = {
         application: {
             name: 'Application Form',
             path: '/bridges-application',
-            supportsPreFill: true
+            supportsPreFill: true,
+            requiresContact: false
         },
         enrollment: {
             name: 'Enrollment Form',
             path: '/bridges-enrollment',
-            supportsPreFill: true
+            supportsPreFill: true,
+            requiresContact: true
         }
     },
     searchDebounceMs: 300,
@@ -113,6 +115,15 @@ function goToSearch() {
     elements.searchResults.innerHTML = '';
     elements.selectedFormName.textContent = CONFIG.forms[state.selectedForm].name;
     elements.selectedSiteName.textContent = state.selectedSite;
+
+    // Hide skip button if contact is required (Enrollment form)
+    const formConfig = CONFIG.forms[state.selectedForm];
+    if (formConfig.requiresContact) {
+        elements.skipSearchBtn.style.display = 'none';
+    } else {
+        elements.skipSearchBtn.style.display = 'block';
+    }
+
     showStep('step-search');
     elements.searchInput.focus();
 }
