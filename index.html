@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0070d2">
+    <meta name="description" content="Bridges Forms - Quick access to Interest, Application, and Enrollment forms">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bridges Forms">
+    <title>Bridges Forms</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <img src="icons/bridges-logo.png" alt="Bridges" class="logo" onerror="this.style.display='none'">
+            <h1>Bridges Forms</h1>
+        </header>
+
+        <!-- Step 1: Site Selection -->
+        <section id="step-site-select" class="step active">
+            <h2>Select Your Site</h2>
+            <p class="step-description">Choose your Bridges location</p>
+
+            <div class="site-grid" id="site-grid">
+                <!-- Sites will be populated by JavaScript -->
+            </div>
+        </section>
+
+        <!-- Step 2: Form Selection -->
+        <section id="step-form-select" class="step">
+            <button class="back-btn" id="back-to-sites">← Back</button>
+            <h2>Select Form Type</h2>
+            <p class="step-description">Choose the form you want to fill out</p>
+
+            <div class="form-cards">
+                <button class="form-card" data-form="interest">
+                    <div class="card-icon">📝</div>
+                    <div class="card-content">
+                        <h3>Interest Form</h3>
+                        <p>New participant expressing interest in Bridges programs</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </button>
+
+                <button class="form-card" data-form="application">
+                    <div class="card-icon">📋</div>
+                    <div class="card-content">
+                        <h3>Application Form</h3>
+                        <p>Complete application for existing participants</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </button>
+
+                <button class="form-card" data-form="enrollment">
+                    <div class="card-icon">✅</div>
+                    <div class="card-content">
+                        <h3>Enrollment Form</h3>
+                        <p>Final enrollment for accepted participants</p>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </button>
+            </div>
+        </section>
+
+        <!-- Step 3: Participant Search -->
+        <section id="step-search" class="step">
+            <button class="back-btn" id="back-to-forms">← Back</button>
+            <h2>Find Participant</h2>
+            <p class="step-description">Search by name to pre-fill the <span id="selected-form-name"></span></p>
+            <p class="site-filter-note">Showing participants from: <strong id="selected-site-name"></strong></p>
+
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <input
+                        type="text"
+                        id="search-input"
+                        placeholder="Type participant name..."
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                    >
+                    <div class="search-icon">🔍</div>
+                    <div class="loading-spinner" id="search-spinner"></div>
+                </div>
+
+                <div id="search-results" class="search-results"></div>
+            </div>
+
+            <div class="skip-search">
+                <button id="skip-search-btn" class="secondary-btn">
+                    Skip Search - Open Blank Form
+                </button>
+            </div>
+        </section>
+
+        <!-- Step 4: Confirm & Launch -->
+        <section id="step-confirm" class="step">
+            <button class="back-btn" id="back-to-search">← Back</button>
+            <h2>Ready to Launch</h2>
+
+            <div class="confirm-details">
+                <div class="confirm-card">
+                    <div class="confirm-row">
+                        <span class="label">Site:</span>
+                        <span id="confirm-site" class="value"></span>
+                    </div>
+                    <div class="confirm-row">
+                        <span class="label">Form:</span>
+                        <span id="confirm-form" class="value"></span>
+                    </div>
+                    <div class="confirm-row" id="confirm-participant-row">
+                        <span class="label">Participant:</span>
+                        <span id="confirm-participant" class="value"></span>
+                    </div>
+                    <div class="confirm-row" id="confirm-email-row">
+                        <span class="label">Email:</span>
+                        <span id="confirm-email" class="value"></span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="launch-form-btn" class="primary-btn">
+                Open Form →
+            </button>
+        </section>
+
+        <!-- Install Prompt -->
+        <div id="install-prompt" class="install-prompt hidden">
+            <p>Install Bridges Forms for quick access</p>
+            <div class="install-buttons">
+                <button id="install-btn" class="install-btn">Install</button>
+                <button id="dismiss-install" class="dismiss-btn">Not now</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

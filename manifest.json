@@ -1,0 +1,84 @@
+{
+    "name": "Bridges Forms",
+    "short_name": "Bridges",
+    "description": "Quick access to Bridges Interest, Application, and Enrollment forms",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#0070d2",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "icons/icon-72.png",
+            "sizes": "72x72",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-96.png",
+            "sizes": "96x96",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-128.png",
+            "sizes": "128x128",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-144.png",
+            "sizes": "144x144",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-152.png",
+            "sizes": "152x152",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-384.png",
+            "sizes": "384x384",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "categories": ["business", "productivity"],
+    "shortcuts": [
+        {
+            "name": "Interest Form",
+            "short_name": "Interest",
+            "description": "Open Interest Form",
+            "url": "/?form=interest",
+            "icons": [{"src": "icons/icon-96.png", "sizes": "96x96"}]
+        },
+        {
+            "name": "Application Form",
+            "short_name": "Application",
+            "description": "Open Application Form",
+            "url": "/?form=application",
+            "icons": [{"src": "icons/icon-96.png", "sizes": "96x96"}]
+        },
+        {
+            "name": "Enrollment Form",
+            "short_name": "Enrollment",
+            "description": "Open Enrollment Form",
+            "url": "/?form=enrollment",
+            "icons": [{"src": "icons/icon-96.png", "sizes": "96x96"}]
+        }
+    ]
+}
