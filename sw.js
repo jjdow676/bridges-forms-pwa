@@ -3,7 +3,7 @@
  * Provides offline caching and app-like behavior
  */
 
-const CACHE_NAME = 'bridges-forms-v14';
+const CACHE_NAME = 'bridges-forms-v15';
 const ASSETS_TO_CACHE = [
     '/',
     '/index.html',

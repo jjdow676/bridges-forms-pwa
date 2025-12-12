@@ -74,7 +74,8 @@ const CONFIG = {
             supportsPreFill: true,
             requiresAuth: true,   // Auth needed for participant search
             requiresContact: false,
-            category: 'participant'
+            category: 'participant',
+            programTypeFilter: 'jobPlacement'  // Filter by Job Placement programs
         },
         enrollment: {
             name: 'Enrollment Form',
@@ -82,7 +83,8 @@ const CONFIG = {
             supportsPreFill: true,
             requiresAuth: true,   // Auth always required (needs contact)
             requiresContact: true,
-            category: 'participant'
+            category: 'participant',
+            programTypeFilter: 'jobPlacement'  // Filter by Job Placement programs
         },
         preEtsInterest: {
             name: 'Pre-ETS Interest Form',
@@ -518,10 +520,16 @@ async function searchContacts(searchTerm) {
     elements.searchSpinner.classList.add('active');
 
     try {
-        // Build URL with search term and site filter
+        // Build URL with search term, site filter, and program type filter
         let url = `${CONFIG.apiUrl}?searchTerm=${encodeURIComponent(searchTerm)}`;
         if (state.selectedSite) {
             url += `&site=${encodeURIComponent(state.selectedSite)}`;
+        }
+
+        // Add program type filter if the form requires it
+        const formConfig = CONFIG.forms[state.selectedForm];
+        if (formConfig && formConfig.programTypeFilter) {
+            url += `&programType=${encodeURIComponent(formConfig.programTypeFilter)}`;
         }
 
         const response = await fetch(
