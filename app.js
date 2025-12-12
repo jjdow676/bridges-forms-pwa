@@ -28,19 +28,34 @@ const CONFIG = {
         interest: {
             name: 'Interest Form',
             path: '/interest-form',
-            supportsPreFill: false
+            supportsPreFill: false,
+            category: 'participant'
         },
         application: {
             name: 'Application Form',
             path: '/bridges-application',
             supportsPreFill: true,
-            requiresContact: false
+            requiresContact: false,
+            category: 'participant'
         },
         enrollment: {
             name: 'Enrollment Form',
             path: '/bridges-enrollment',
             supportsPreFill: true,
-            requiresContact: true
+            requiresContact: true,
+            category: 'participant'
+        },
+        preEtsInterest: {
+            name: 'Pre-ETS Interest Form',
+            path: '/pre-ets-interest-form',
+            supportsPreFill: false,
+            category: 'jobPlacement'
+        },
+        educationalPlacement: {
+            name: 'Educational Placement Form',
+            path: '/educational-placement-interest-form',
+            supportsPreFill: false,
+            category: 'jobPlacement'
         }
     },
     searchDebounceMs: 300,

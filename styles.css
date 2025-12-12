@@ -151,11 +151,29 @@ html, body {
     color: var(--primary-color);
 }
 
+/* Form Section Headers */
+.form-section-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.form-section-header:first-of-type {
+    margin-top: 0;
+}
+
 /* Form Cards */
 .form-cards {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    margin-bottom: 8px;
 }
 
 .form-card {
