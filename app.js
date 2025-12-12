@@ -59,7 +59,12 @@ const CONFIG = {
         }
     },
     searchDebounceMs: 300,
-    minSearchLength: 2
+    minSearchLength: 2,
+    // Site-based form visibility
+    siteFormRules: {
+        preEtsInterest: ['Atlanta', 'New York City', 'Philadelphia'],
+        educationalPlacement: ['San Francisco']
+    }
 };
 
 // App State
@@ -100,7 +105,11 @@ const elements = {
     // New banner elements
     installBanner: document.getElementById('install-banner'),
     installBannerBtn: document.getElementById('install-banner-btn'),
-    dismissBanner: document.getElementById('dismiss-banner')
+    dismissBanner: document.getElementById('dismiss-banner'),
+    // Job Placement section elements
+    jobPlacementSection: document.getElementById('job-placement-section'),
+    preEtsCard: document.getElementById('preEtsCard'),
+    educationalPlacementCard: document.getElementById('educationalPlacementCard')
 };
 
 // Navigation
@@ -125,7 +134,37 @@ function goToFormSelect() {
     state.selectedContact = null;
     elements.searchInput.value = '';
     elements.searchResults.innerHTML = '';
+    // Update form visibility based on selected site
+    updateJobPlacementVisibility();
     showStep('step-form-select');
+}
+
+// Update Job Placement section visibility based on selected site
+function updateJobPlacementVisibility() {
+    const site = state.selectedSite;
+    const rules = CONFIG.siteFormRules;
+
+    // Check if Pre-ETS should be visible for this site
+    const showPreEts = rules.preEtsInterest.includes(site);
+    // Check if Educational Placement should be visible for this site
+    const showEducational = rules.educationalPlacement.includes(site);
+
+    // Show/hide individual cards
+    if (elements.preEtsCard) {
+        elements.preEtsCard.style.display = showPreEts ? 'flex' : 'none';
+    }
+    if (elements.educationalPlacementCard) {
+        elements.educationalPlacementCard.style.display = showEducational ? 'flex' : 'none';
+    }
+
+    // Show/hide the entire Job Placement section if neither form applies
+    if (elements.jobPlacementSection) {
+        if (showPreEts || showEducational) {
+            elements.jobPlacementSection.classList.remove('hidden');
+        } else {
+            elements.jobPlacementSection.classList.add('hidden');
+        }
+    }
 }
 
 function goToSearch() {

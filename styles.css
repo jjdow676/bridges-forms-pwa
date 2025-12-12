@@ -168,6 +168,20 @@ html, body {
     margin-top: 0;
 }
 
+/* Form Sections */
+.form-section {
+    margin-bottom: 16px;
+}
+
+.form-section.hidden {
+    display: none;
+}
+
+/* Generic hidden class */
+.hidden {
+    display: none !important;
+}
+
 /* Form Cards */
 .form-cards {
     display: flex;
