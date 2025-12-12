@@ -130,8 +130,15 @@ let elements = {};
 
 async function initializeMsal() {
     try {
+        // Check if MSAL library is loaded
+        if (typeof msal === 'undefined') {
+            console.error('MSAL library not loaded. Authentication will not work.');
+            return;
+        }
+
         msalInstance = new msal.PublicClientApplication(msalConfig);
         await msalInstance.initialize();
+        console.log('MSAL initialized successfully');
 
         // Handle redirect callback
         const response = await msalInstance.handleRedirectPromise();
@@ -152,6 +159,7 @@ async function initializeMsal() {
         }
     } catch (error) {
         console.error('MSAL initialization error:', error);
+        msalInstance = null;
     }
 }
 
@@ -163,6 +171,16 @@ function isAllowedDomain(email) {
 
 async function signIn(pendingFormType = null) {
     state.pendingFormType = pendingFormType;
+
+    // Check if MSAL is initialized
+    if (!msalInstance) {
+        console.error('MSAL not initialized. Attempting to reinitialize...');
+        await initializeMsal();
+        if (!msalInstance) {
+            showLoginError('Authentication service unavailable. Please refresh the page.');
+            return;
+        }
+    }
 
     try {
         // Show loading state on login screen if visible
