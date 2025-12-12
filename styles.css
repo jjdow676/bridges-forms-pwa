@@ -393,6 +393,75 @@ html, body {
     color: var(--text-secondary);
 }
 
+/* Choice Cards (for Application form search/blank choice) */
+.choice-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.choice-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 24px 20px;
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.choice-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.choice-card:active {
+    transform: translateY(0);
+}
+
+.choice-icon {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--background);
+    border-radius: var(--radius);
+}
+
+.choice-content {
+    flex: 1;
+}
+
+.choice-content h3 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.choice-content p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.choice-note {
+    display: inline-block;
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    background: rgba(58, 175, 169, 0.1);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
 /* Search */
 .search-container {
     margin-bottom: 24px;

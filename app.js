@@ -425,17 +425,65 @@ function handleFormSelect(formType) {
         return;
     }
 
-    // Forms that require auth for search
-    if (formConfig.requiresAuth && !authState.isAuthenticated) {
-        // Show login screen and store pending form
-        showLoginScreen();
-        state.pendingFormType = formType;
+    // Forms that always require contact (Enrollment) - must authenticate
+    if (formConfig.requiresContact) {
+        if (!authState.isAuthenticated) {
+            showLoginScreen();
+            state.pendingFormType = formType;
+            return;
+        }
+        state.selectedForm = formType;
+        goToSearch();
         return;
     }
 
-    // User is authenticated or form doesn't require auth
+    // Forms that support optional pre-fill (Application) - show choice
+    if (formConfig.supportsPreFill && !formConfig.requiresContact) {
+        state.selectedForm = formType;
+        showSearchChoice();
+        return;
+    }
+
+    // Fallback - go to search if authenticated
     state.selectedForm = formType;
     goToSearch();
+}
+
+// Show search choice screen (for Application form)
+function showSearchChoice() {
+    const formConfig = CONFIG.forms[state.selectedForm];
+    elements.choiceFormName.textContent = formConfig.name;
+    showStep('step-search-choice');
+}
+
+// Handle choice to search for participant (requires auth)
+function handleChoiceSearch() {
+    if (!authState.isAuthenticated) {
+        showLoginScreen();
+        state.pendingFormType = state.selectedForm;
+        return;
+    }
+    goToSearch();
+}
+
+// Handle choice to open blank form (no auth needed)
+function handleChoiceBlank() {
+    launchFormDirect();
+}
+
+function goToSearchChoice() {
+    showStep('step-search-choice');
+}
+
+// Handle back button from search - go to choice screen for Application, form select for others
+function handleBackToForms() {
+    const formConfig = CONFIG.forms[state.selectedForm];
+    // If coming from a form with optional pre-fill (Application), go back to choice
+    if (formConfig && formConfig.supportsPreFill && !formConfig.requiresContact) {
+        goToSearchChoice();
+    } else {
+        goToFormSelect();
+    }
 }
 
 // Launch form directly without confirm screen (for Interest form)
@@ -773,7 +821,13 @@ function initDOMElements() {
         loginScreen: document.getElementById('login-screen'),
         loginBtn: document.getElementById('login-btn'),
         logoutBtn: document.getElementById('logout-btn'),
-        userName: document.getElementById('user-name')
+        userName: document.getElementById('user-name'),
+        // Search choice elements
+        stepSearchChoice: document.getElementById('step-search-choice'),
+        choiceFormName: document.getElementById('choice-form-name'),
+        choiceSearchBtn: document.getElementById('choice-search-btn'),
+        choiceBlankBtn: document.getElementById('choice-blank-btn'),
+        backToFormsFromChoice: document.getElementById('back-to-forms-from-choice')
     };
 }
 
@@ -785,8 +839,19 @@ function initEventListeners() {
 
     // Navigation
     elements.backToSites.addEventListener('click', goToSiteSelect);
-    elements.backToForms.addEventListener('click', goToFormSelect);
+    elements.backToForms.addEventListener('click', handleBackToForms);
     elements.backToSearch.addEventListener('click', goToSearch);
+
+    // Search choice screen navigation
+    if (elements.backToFormsFromChoice) {
+        elements.backToFormsFromChoice.addEventListener('click', goToFormSelect);
+    }
+    if (elements.choiceSearchBtn) {
+        elements.choiceSearchBtn.addEventListener('click', handleChoiceSearch);
+    }
+    if (elements.choiceBlankBtn) {
+        elements.choiceBlankBtn.addEventListener('click', handleChoiceBlank);
+    }
 
     // Search
     elements.searchInput.addEventListener('input', handleSearchInput);
