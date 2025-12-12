@@ -14,14 +14,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="styles.css">
-    <!-- Microsoft Authentication Library (with fallback) -->
-    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
-    <script>
-        // Fallback to unpkg CDN if Microsoft CDN fails
-        if (typeof msal === 'undefined') {
-            document.write('<script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"><\/script>');
-        }
-    </script>
+    <!-- Microsoft Authentication Library -->
+    <script src="https://unpkg.com/@azure/msal-browser@3.6.0/lib/msal-browser.min.js"></script>
 </head>
 <body>
     <div id="app">
