@@ -9,8 +9,7 @@
 // ======================
 const msalConfig = {
     auth: {
-        // TODO: Replace with your Azure AD App Registration Client ID
-        clientId: 'YOUR_CLIENT_ID_HERE',
+        clientId: 'b734621f-54bd-40ca-ac79-09f78c143df5',
         // Bridges organization tenant
         authority: 'https://login.microsoftonline.com/bridgestowork.org',
         // Azure Static Web Apps redirect URI
