@@ -106,8 +106,8 @@ const elements = {
     installBanner: document.getElementById('install-banner'),
     installBannerBtn: document.getElementById('install-banner-btn'),
     dismissBanner: document.getElementById('dismiss-banner'),
-    // Job Placement section elements
-    jobPlacementSection: document.getElementById('job-placement-section'),
+    // Other Forms section elements (conditionally shown)
+    otherFormsSection: document.getElementById('other-forms-section'),
     preEtsCard: document.getElementById('preEtsCard'),
     educationalPlacementCard: document.getElementById('educationalPlacementCard')
 };
@@ -135,12 +135,12 @@ function goToFormSelect() {
     elements.searchInput.value = '';
     elements.searchResults.innerHTML = '';
     // Update form visibility based on selected site
-    updateJobPlacementVisibility();
+    updateOtherFormsVisibility();
     showStep('step-form-select');
 }
 
-// Update Job Placement section visibility based on selected site
-function updateJobPlacementVisibility() {
+// Update Other Forms section visibility based on selected site
+function updateOtherFormsVisibility() {
     const site = state.selectedSite;
     const rules = CONFIG.siteFormRules;
 
@@ -157,12 +157,12 @@ function updateJobPlacementVisibility() {
         elements.educationalPlacementCard.style.display = showEducational ? 'flex' : 'none';
     }
 
-    // Show/hide the entire Job Placement section if neither form applies
-    if (elements.jobPlacementSection) {
+    // Show/hide the entire Other Forms section if neither form applies
+    if (elements.otherFormsSection) {
         if (showPreEts || showEducational) {
-            elements.jobPlacementSection.classList.remove('hidden');
+            elements.otherFormsSection.classList.remove('hidden');
         } else {
-            elements.jobPlacementSection.classList.add('hidden');
+            elements.otherFormsSection.classList.add('hidden');
         }
     }
 }
