@@ -14,9 +14,30 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="styles.css">
+    <!-- Microsoft Authentication Library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
 </head>
 <body>
     <div id="app">
+        <!-- Login Screen (shown when not authenticated) -->
+        <section id="login-screen" class="login-screen">
+            <div class="login-container">
+                <img src="icons/icon-192.png" alt="Bridges Forms" class="login-logo">
+                <h1>Bridges Forms</h1>
+                <p class="login-description">Sign in with your Bridges account to access participant forms</p>
+                <button id="login-btn" class="login-btn">
+                    <svg class="microsoft-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                    </svg>
+                    Sign in with Microsoft
+                </button>
+                <p class="login-note">Only @bridgestowork.org accounts are allowed</p>
+            </div>
+        </section>
+
         <!-- Install Banner (shown for non-installed users) -->
         <div id="install-banner" class="install-banner hidden">
             <div class="install-banner-content">
@@ -36,8 +57,14 @@
 
         <!-- Header -->
         <header class="app-header">
-            <img src="icons/bridges-logo.png" alt="Bridges" class="logo" onerror="this.style.display='none'">
-            <h1>Bridges Forms</h1>
+            <div class="header-left">
+                <img src="icons/bridges-logo.png" alt="Bridges" class="logo" onerror="this.style.display='none'">
+                <h1>Bridges Forms</h1>
+            </div>
+            <div class="header-right">
+                <span id="user-name" class="user-name"></span>
+                <button id="logout-btn" class="logout-btn" title="Sign out">Sign Out</button>
+            </div>
         </header>
 
         <!-- Step 1: Site Selection -->

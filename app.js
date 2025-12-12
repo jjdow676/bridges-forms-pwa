@@ -1,9 +1,45 @@
 /**
  * Bridges Forms PWA
  * Quick access to Interest, Application, and Enrollment forms
+ * With Microsoft SSO Authentication
  */
 
-// Configuration
+// ======================
+// Microsoft SSO Configuration
+// ======================
+const msalConfig = {
+    auth: {
+        // TODO: Replace with your Azure AD App Registration Client ID
+        clientId: 'YOUR_CLIENT_ID_HERE',
+        // Bridges organization tenant
+        authority: 'https://login.microsoftonline.com/bridgestowork.org',
+        // GitHub Pages redirect URI
+        redirectUri: window.location.origin + window.location.pathname,
+        postLogoutRedirectUri: window.location.origin + window.location.pathname
+    },
+    cache: {
+        cacheLocation: 'localStorage',
+        storeAuthStateInCookie: false
+    }
+};
+
+// Login request scopes
+const loginRequest = {
+    scopes: ['openid', 'profile', 'email']
+};
+
+// MSAL instance (initialized after DOM ready)
+let msalInstance = null;
+
+// Authentication state
+const authState = {
+    isAuthenticated: false,
+    user: null
+};
+
+// ======================
+// App Configuration
+// ======================
 const CONFIG = {
     // Base URL for Experience Cloud site
     baseUrl: 'https://bridgestowork.my.site.com/forms/s',
@@ -64,7 +100,9 @@ const CONFIG = {
     siteFormRules: {
         preEtsInterest: ['Atlanta', 'New York City', 'Philadelphia'],
         educationalPlacement: ['San Francisco']
-    }
+    },
+    // Allowed email domain for authentication
+    allowedDomain: 'bridgestowork.org'
 };
 
 // App State
@@ -75,44 +113,181 @@ const state = {
     searchTimeout: null
 };
 
-// DOM Elements
-const elements = {
-    stepSiteSelect: document.getElementById('step-site-select'),
-    stepFormSelect: document.getElementById('step-form-select'),
-    stepSearch: document.getElementById('step-search'),
-    stepConfirm: document.getElementById('step-confirm'),
-    siteGrid: document.getElementById('site-grid'),
-    formCards: document.querySelectorAll('.form-card'),
-    backToSites: document.getElementById('back-to-sites'),
-    backToForms: document.getElementById('back-to-forms'),
-    backToSearch: document.getElementById('back-to-search'),
-    selectedFormName: document.getElementById('selected-form-name'),
-    selectedSiteName: document.getElementById('selected-site-name'),
-    searchInput: document.getElementById('search-input'),
-    searchSpinner: document.getElementById('search-spinner'),
-    searchResults: document.getElementById('search-results'),
-    skipSearchBtn: document.getElementById('skip-search-btn'),
-    confirmSite: document.getElementById('confirm-site'),
-    confirmForm: document.getElementById('confirm-form'),
-    confirmParticipant: document.getElementById('confirm-participant'),
-    confirmParticipantRow: document.getElementById('confirm-participant-row'),
-    confirmEmail: document.getElementById('confirm-email'),
-    confirmEmailRow: document.getElementById('confirm-email-row'),
-    launchFormBtn: document.getElementById('launch-form-btn'),
-    installPrompt: document.getElementById('install-prompt'),
-    installBtn: document.getElementById('install-btn'),
-    dismissInstall: document.getElementById('dismiss-install'),
-    // New banner elements
-    installBanner: document.getElementById('install-banner'),
-    installBannerBtn: document.getElementById('install-banner-btn'),
-    dismissBanner: document.getElementById('dismiss-banner'),
-    // Other Forms section elements (conditionally shown)
-    otherFormsSection: document.getElementById('other-forms-section'),
-    preEtsCard: document.getElementById('preEtsCard'),
-    educationalPlacementCard: document.getElementById('educationalPlacementCard')
-};
+// DOM Elements (will be populated after DOM ready)
+let elements = {};
 
-// Navigation
+// ======================
+// Authentication Functions
+// ======================
+
+async function initializeMsal() {
+    try {
+        msalInstance = new msal.PublicClientApplication(msalConfig);
+        await msalInstance.initialize();
+
+        // Handle redirect callback
+        const response = await msalInstance.handleRedirectPromise();
+        if (response) {
+            handleAuthResponse(response);
+        } else {
+            // Check for existing session
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                const account = accounts[0];
+                // Verify domain
+                if (isAllowedDomain(account.username)) {
+                    authState.isAuthenticated = true;
+                    authState.user = account;
+                    showAuthenticatedUI();
+                } else {
+                    // Wrong domain, sign out
+                    await signOut();
+                    showLoginError('Only @bridgestowork.org accounts are allowed.');
+                }
+            } else {
+                showLoginScreen();
+            }
+        }
+    } catch (error) {
+        console.error('MSAL initialization error:', error);
+        showLoginError('Authentication system error. Please refresh the page.');
+    }
+}
+
+function isAllowedDomain(email) {
+    if (!email) return false;
+    const domain = email.split('@')[1];
+    return domain && domain.toLowerCase() === CONFIG.allowedDomain.toLowerCase();
+}
+
+async function signIn() {
+    try {
+        // Show loading state
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = 'Signing in...';
+        }
+
+        // Use popup for better UX on mobile
+        const response = await msalInstance.loginPopup(loginRequest);
+        handleAuthResponse(response);
+    } catch (error) {
+        console.error('Login error:', error);
+        // Reset button
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = `
+                <svg class="microsoft-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                Sign in with Microsoft
+            `;
+        }
+
+        if (error.errorCode === 'user_cancelled') {
+            // User cancelled, no error message needed
+            return;
+        }
+        showLoginError('Sign in failed. Please try again.');
+    }
+}
+
+function handleAuthResponse(response) {
+    if (response && response.account) {
+        const account = response.account;
+
+        // Verify domain
+        if (isAllowedDomain(account.username)) {
+            authState.isAuthenticated = true;
+            authState.user = account;
+            msalInstance.setActiveAccount(account);
+            showAuthenticatedUI();
+        } else {
+            // Wrong domain
+            signOut();
+            showLoginError('Only @bridgestowork.org accounts are allowed. You signed in with: ' + account.username);
+        }
+    }
+}
+
+async function signOut() {
+    try {
+        authState.isAuthenticated = false;
+        authState.user = null;
+
+        // Clear MSAL cache
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+            await msalInstance.logoutPopup({
+                account: accounts[0],
+                postLogoutRedirectUri: window.location.origin + window.location.pathname
+            });
+        }
+
+        showLoginScreen();
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Force clear and show login
+        localStorage.clear();
+        showLoginScreen();
+    }
+}
+
+function showLoginScreen() {
+    const loginScreen = document.getElementById('login-screen');
+    const appHeader = document.querySelector('.app-header');
+    const steps = document.querySelectorAll('.step');
+
+    if (loginScreen) loginScreen.classList.add('active');
+    if (appHeader) appHeader.style.display = 'none';
+    steps.forEach(step => step.classList.remove('active'));
+}
+
+function showAuthenticatedUI() {
+    const loginScreen = document.getElementById('login-screen');
+    const appHeader = document.querySelector('.app-header');
+    const userName = document.getElementById('user-name');
+
+    if (loginScreen) loginScreen.classList.remove('active');
+    if (appHeader) appHeader.style.display = 'flex';
+
+    // Display user name
+    if (userName && authState.user) {
+        const displayName = authState.user.name || authState.user.username.split('@')[0];
+        userName.textContent = displayName;
+    }
+
+    // Show site selection step
+    showStep('step-site-select');
+
+    // Initialize the rest of the app
+    initAppAfterAuth();
+}
+
+function showLoginError(message) {
+    const loginScreen = document.getElementById('login-screen');
+    let errorEl = loginScreen.querySelector('.login-error');
+
+    if (!errorEl) {
+        errorEl = document.createElement('p');
+        errorEl.className = 'login-error';
+        const loginBtn = document.getElementById('login-btn');
+        loginBtn.parentNode.insertBefore(errorEl, loginBtn.nextSibling);
+    }
+
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+}
+
+// ======================
+// Navigation Functions
+// ======================
+
 function showStep(stepId) {
     document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
     document.getElementById(stepId).classList.add('active');
@@ -122,18 +297,20 @@ function goToSiteSelect() {
     state.selectedSite = null;
     state.selectedForm = null;
     state.selectedContact = null;
-    elements.searchInput.value = '';
-    elements.searchResults.innerHTML = '';
+    if (elements.searchInput) elements.searchInput.value = '';
+    if (elements.searchResults) elements.searchResults.innerHTML = '';
     // Clear site button selection
-    elements.siteGrid.querySelectorAll('.site-btn').forEach(btn => btn.classList.remove('selected'));
+    if (elements.siteGrid) {
+        elements.siteGrid.querySelectorAll('.site-btn').forEach(btn => btn.classList.remove('selected'));
+    }
     showStep('step-site-select');
 }
 
 function goToFormSelect() {
     state.selectedForm = null;
     state.selectedContact = null;
-    elements.searchInput.value = '';
-    elements.searchResults.innerHTML = '';
+    if (elements.searchInput) elements.searchInput.value = '';
+    if (elements.searchResults) elements.searchResults.innerHTML = '';
     // Update form visibility based on selected site
     updateOtherFormsVisibility();
     showStep('step-form-select');
@@ -210,7 +387,10 @@ function goToConfirm() {
     showStep('step-confirm');
 }
 
-// Site Selection
+// ======================
+// Site & Form Selection
+// ======================
+
 function handleSiteSelect(site, buttonElement) {
     state.selectedSite = site;
     // Highlight selected button
@@ -220,7 +400,6 @@ function handleSiteSelect(site, buttonElement) {
     goToFormSelect();
 }
 
-// Form Selection
 function handleFormSelect(formType) {
     state.selectedForm = formType;
     const formConfig = CONFIG.forms[formType];
@@ -252,7 +431,10 @@ function launchFormDirect() {
     }, 500);
 }
 
-// Search
+// ======================
+// Search Functions
+// ======================
+
 async function searchContacts(searchTerm) {
     if (searchTerm.length < CONFIG.minSearchLength) {
         elements.searchResults.innerHTML = '';
@@ -355,7 +537,10 @@ function handleSearchInput(event) {
     }, CONFIG.searchDebounceMs);
 }
 
+// ======================
 // Launch Form
+// ======================
+
 function launchForm() {
     const formConfig = CONFIG.forms[state.selectedForm];
     let url = CONFIG.baseUrl + formConfig.path;
@@ -385,7 +570,10 @@ function launchForm() {
     }, 500);
 }
 
+// ======================
 // Utilities
+// ======================
+
 function getInitials(name) {
     if (!name) return '?';
     const parts = name.split(' ').filter(p => p.length > 0);
@@ -402,15 +590,16 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// PWA Install
+// ======================
+// PWA Install Functions
+// ======================
+
 let deferredPrompt = null;
 
 function isAppInstalled() {
-    // Check if running as standalone PWA
     if (window.matchMedia('(display-mode: standalone)').matches) {
         return true;
     }
-    // iOS standalone check
     if (window.navigator.standalone === true) {
         return true;
     }
@@ -418,11 +607,9 @@ function isAppInstalled() {
 }
 
 function shouldShowInstallPrompt() {
-    // Don't show if already installed
     if (isAppInstalled()) {
         return false;
     }
-    // Don't show if dismissed recently (within 7 days)
     const dismissedTime = localStorage.getItem('installDismissedTime');
     if (dismissedTime) {
         const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24);
@@ -437,19 +624,19 @@ function handleInstallPrompt(event) {
     event.preventDefault();
     deferredPrompt = event;
 
-    // Show install banner after a short delay if appropriate
-    if (shouldShowInstallPrompt()) {
+    if (shouldShowInstallPrompt() && authState.isAuthenticated) {
         setTimeout(() => {
             showInstallBanner();
-        }, 1500); // Show after 1.5 seconds
+        }, 1500);
     }
 }
 
 function showInstallBanner() {
-    if (deferredPrompt && shouldShowInstallPrompt()) {
+    if (deferredPrompt && shouldShowInstallPrompt() && elements.installBanner) {
         elements.installBanner.classList.remove('hidden');
-        // Hide the bottom prompt if it's showing
-        elements.installPrompt.classList.add('hidden');
+        if (elements.installPrompt) {
+            elements.installPrompt.classList.add('hidden');
+        }
     }
 }
 
@@ -465,39 +652,36 @@ async function installApp() {
     }
 
     deferredPrompt = null;
-    elements.installBanner.classList.add('hidden');
-    elements.installPrompt.classList.add('hidden');
+    if (elements.installBanner) elements.installBanner.classList.add('hidden');
+    if (elements.installPrompt) elements.installPrompt.classList.add('hidden');
 }
 
 function dismissInstallBanner() {
-    // Store dismissal time instead of permanent flag
     localStorage.setItem('installDismissedTime', Date.now().toString());
-    elements.installBanner.classList.add('hidden');
+    if (elements.installBanner) elements.installBanner.classList.add('hidden');
 }
 
 function dismissInstall() {
     localStorage.setItem('installDismissedTime', Date.now().toString());
-    elements.installPrompt.classList.add('hidden');
+    if (elements.installPrompt) elements.installPrompt.classList.add('hidden');
 }
 
-// Check for iOS and show manual install instructions
 function checkiOSInstall() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isInStandaloneMode = window.navigator.standalone === true;
 
-    if (isIOS && !isInStandaloneMode && shouldShowInstallPrompt()) {
-        // For iOS, we can't use the install prompt API, so show instructions
+    if (isIOS && !isInStandaloneMode && shouldShowInstallPrompt() && authState.isAuthenticated) {
         setTimeout(() => {
-            if (!deferredPrompt) { // Only show iOS banner if native prompt not available
+            if (!deferredPrompt && elements.installBanner) {
                 elements.installBanner.classList.remove('hidden');
-                // Update banner text for iOS
                 const bannerText = elements.installBanner.querySelector('.install-banner-text p');
                 if (bannerText) {
                     bannerText.textContent = 'Tap the share button and select "Add to Home Screen"';
                 }
-                // Hide the install button on iOS (manual process)
-                elements.installBannerBtn.textContent = 'How to Install';
-                elements.installBannerBtn.onclick = showIOSInstructions;
+                if (elements.installBannerBtn) {
+                    elements.installBannerBtn.textContent = 'How to Install';
+                    elements.installBannerBtn.onclick = showIOSInstructions;
+                }
             }
         }, 2000);
     }
@@ -507,21 +691,67 @@ function showIOSInstructions() {
     alert('To install Bridges Forms:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to confirm\n\nThe app will appear on your home screen!');
 }
 
-// Render Site Grid
+// ======================
+// Render Functions
+// ======================
+
 function renderSiteGrid() {
     const html = CONFIG.sites.map(site =>
         `<button class="site-btn" data-site="${escapeHtml(site)}">${escapeHtml(site)}</button>`
     ).join('');
     elements.siteGrid.innerHTML = html;
 
-    // Add click handlers
     elements.siteGrid.querySelectorAll('.site-btn').forEach(btn => {
         btn.addEventListener('click', () => handleSiteSelect(btn.dataset.site, btn));
     });
 }
 
-// Event Listeners
-function initEventListeners() {
+// ======================
+// Initialization
+// ======================
+
+function initDOMElements() {
+    elements = {
+        stepSiteSelect: document.getElementById('step-site-select'),
+        stepFormSelect: document.getElementById('step-form-select'),
+        stepSearch: document.getElementById('step-search'),
+        stepConfirm: document.getElementById('step-confirm'),
+        siteGrid: document.getElementById('site-grid'),
+        formCards: document.querySelectorAll('.form-card'),
+        backToSites: document.getElementById('back-to-sites'),
+        backToForms: document.getElementById('back-to-forms'),
+        backToSearch: document.getElementById('back-to-search'),
+        selectedFormName: document.getElementById('selected-form-name'),
+        selectedSiteName: document.getElementById('selected-site-name'),
+        searchInput: document.getElementById('search-input'),
+        searchSpinner: document.getElementById('search-spinner'),
+        searchResults: document.getElementById('search-results'),
+        skipSearchBtn: document.getElementById('skip-search-btn'),
+        confirmSite: document.getElementById('confirm-site'),
+        confirmForm: document.getElementById('confirm-form'),
+        confirmParticipant: document.getElementById('confirm-participant'),
+        confirmParticipantRow: document.getElementById('confirm-participant-row'),
+        confirmEmail: document.getElementById('confirm-email'),
+        confirmEmailRow: document.getElementById('confirm-email-row'),
+        launchFormBtn: document.getElementById('launch-form-btn'),
+        installPrompt: document.getElementById('install-prompt'),
+        installBtn: document.getElementById('install-btn'),
+        dismissInstall: document.getElementById('dismiss-install'),
+        installBanner: document.getElementById('install-banner'),
+        installBannerBtn: document.getElementById('install-banner-btn'),
+        dismissBanner: document.getElementById('dismiss-banner'),
+        otherFormsSection: document.getElementById('other-forms-section'),
+        preEtsCard: document.getElementById('preEtsCard'),
+        educationalPlacementCard: document.getElementById('educationalPlacementCard'),
+        // Auth elements
+        loginScreen: document.getElementById('login-screen'),
+        loginBtn: document.getElementById('login-btn'),
+        logoutBtn: document.getElementById('logout-btn'),
+        userName: document.getElementById('user-name')
+    };
+}
+
+function initAppAfterAuth() {
     // Render site buttons
     renderSiteGrid();
 
@@ -544,18 +774,15 @@ function initEventListeners() {
 
     // PWA Install
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
-    elements.installBtn.addEventListener('click', installApp);
-    elements.dismissInstall.addEventListener('click', dismissInstall);
-
-    // New banner install buttons
-    elements.installBannerBtn.addEventListener('click', installApp);
-    elements.dismissBanner.addEventListener('click', dismissInstallBanner);
+    if (elements.installBtn) elements.installBtn.addEventListener('click', installApp);
+    if (elements.dismissInstall) elements.dismissInstall.addEventListener('click', dismissInstall);
+    if (elements.installBannerBtn) elements.installBannerBtn.addEventListener('click', installApp);
+    if (elements.dismissBanner) elements.dismissBanner.addEventListener('click', dismissInstallBanner);
 
     // Check for iOS install prompt
     checkiOSInstall();
 }
 
-// Service Worker Registration
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
@@ -567,10 +794,25 @@ async function registerServiceWorker() {
     }
 }
 
-// Initialize
-function init() {
-    initEventListeners();
-    registerServiceWorker();
+async function init() {
+    // Initialize DOM elements
+    initDOMElements();
+
+    // Set up login button
+    if (elements.loginBtn) {
+        elements.loginBtn.addEventListener('click', signIn);
+    }
+
+    // Set up logout button
+    if (elements.logoutBtn) {
+        elements.logoutBtn.addEventListener('click', signOut);
+    }
+
+    // Register service worker
+    await registerServiceWorker();
+
+    // Initialize MSAL and check authentication
+    await initializeMsal();
 }
 
 // Start app when DOM is ready
