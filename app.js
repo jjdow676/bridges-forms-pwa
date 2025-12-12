@@ -1,7 +1,7 @@
 /**
  * Bridges Forms PWA
  * Quick access to Interest, Application, and Enrollment forms
- * With Microsoft SSO Authentication
+ * With Microsoft SSO Authentication (only for forms requiring participant search)
  */
 
 // ======================
@@ -13,7 +13,7 @@ const msalConfig = {
         clientId: 'YOUR_CLIENT_ID_HERE',
         // Bridges organization tenant
         authority: 'https://login.microsoftonline.com/bridgestowork.org',
-        // GitHub Pages redirect URI
+        // Azure Static Web Apps redirect URI
         redirectUri: window.location.origin + window.location.pathname,
         postLogoutRedirectUri: window.location.origin + window.location.pathname
     },
@@ -60,17 +60,20 @@ const CONFIG = {
         'San Francisco'
     ],
     // Form paths
+    // requiresAuth: true means authentication is required to access search
     forms: {
         interest: {
             name: 'Interest Form',
             path: '/interest-form',
             supportsPreFill: false,
+            requiresAuth: false,  // No auth needed - opens directly
             category: 'participant'
         },
         application: {
             name: 'Application Form',
             path: '/bridges-application',
             supportsPreFill: true,
+            requiresAuth: true,   // Auth needed for participant search
             requiresContact: false,
             category: 'participant'
         },
@@ -78,6 +81,7 @@ const CONFIG = {
             name: 'Enrollment Form',
             path: '/bridges-enrollment',
             supportsPreFill: true,
+            requiresAuth: true,   // Auth always required (needs contact)
             requiresContact: true,
             category: 'participant'
         },
@@ -85,12 +89,14 @@ const CONFIG = {
             name: 'Pre-ETS Interest Form',
             path: '/pre-ets-interest-form',
             supportsPreFill: false,
+            requiresAuth: false,  // No auth needed - opens directly
             category: 'jobPlacement'
         },
         educationalPlacement: {
             name: 'Educational Placement Form',
             path: '/educational-placement-interest-form',
             supportsPreFill: false,
+            requiresAuth: false,  // No auth needed - opens directly
             category: 'jobPlacement'
         }
     },
@@ -110,7 +116,8 @@ const state = {
     selectedSite: null,
     selectedForm: null,
     selectedContact: null,
-    searchTimeout: null
+    searchTimeout: null,
+    pendingFormType: null  // Store form type when auth is needed
 };
 
 // DOM Elements (will be populated after DOM ready)
@@ -138,19 +145,12 @@ async function initializeMsal() {
                 if (isAllowedDomain(account.username)) {
                     authState.isAuthenticated = true;
                     authState.user = account;
-                    showAuthenticatedUI();
-                } else {
-                    // Wrong domain, sign out
-                    await signOut();
-                    showLoginError('Only @bridgestowork.org accounts are allowed.');
+                    updateHeaderForAuth();
                 }
-            } else {
-                showLoginScreen();
             }
         }
     } catch (error) {
         console.error('MSAL initialization error:', error);
-        showLoginError('Authentication system error. Please refresh the page.');
     }
 }
 
@@ -160,9 +160,11 @@ function isAllowedDomain(email) {
     return domain && domain.toLowerCase() === CONFIG.allowedDomain.toLowerCase();
 }
 
-async function signIn() {
+async function signIn(pendingFormType = null) {
+    state.pendingFormType = pendingFormType;
+
     try {
-        // Show loading state
+        // Show loading state on login screen if visible
         const loginBtn = document.getElementById('login-btn');
         if (loginBtn) {
             loginBtn.disabled = true;
@@ -190,7 +192,8 @@ async function signIn() {
         }
 
         if (error.errorCode === 'user_cancelled') {
-            // User cancelled, no error message needed
+            // User cancelled, go back to form selection
+            state.pendingFormType = null;
             return;
         }
         showLoginError('Sign in failed. Please try again.');
@@ -206,7 +209,17 @@ function handleAuthResponse(response) {
             authState.isAuthenticated = true;
             authState.user = account;
             msalInstance.setActiveAccount(account);
-            showAuthenticatedUI();
+
+            // Hide login screen if showing
+            hideLoginScreen();
+            updateHeaderForAuth();
+
+            // If there was a pending form, continue to search
+            if (state.pendingFormType) {
+                state.selectedForm = state.pendingFormType;
+                state.pendingFormType = null;
+                goToSearch();
+            }
         } else {
             // Wrong domain
             signOut();
@@ -229,55 +242,58 @@ async function signOut() {
             });
         }
 
-        showLoginScreen();
+        updateHeaderForAuth();
+        goToSiteSelect();
     } catch (error) {
         console.error('Logout error:', error);
-        // Force clear and show login
+        // Force clear and show site select
         localStorage.clear();
-        showLoginScreen();
+        updateHeaderForAuth();
+        goToSiteSelect();
     }
 }
 
 function showLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
-    const appHeader = document.querySelector('.app-header');
-    const steps = document.querySelectorAll('.step');
-
-    if (loginScreen) loginScreen.classList.add('active');
-    if (appHeader) appHeader.style.display = 'none';
-    steps.forEach(step => step.classList.remove('active'));
+    if (loginScreen) {
+        loginScreen.classList.add('active');
+        // Clear any previous errors
+        const errorEl = loginScreen.querySelector('.login-error');
+        if (errorEl) errorEl.style.display = 'none';
+    }
 }
 
-function showAuthenticatedUI() {
+function hideLoginScreen() {
     const loginScreen = document.getElementById('login-screen');
-    const appHeader = document.querySelector('.app-header');
-    const userName = document.getElementById('user-name');
-
     if (loginScreen) loginScreen.classList.remove('active');
-    if (appHeader) appHeader.style.display = 'flex';
+}
 
-    // Display user name
-    if (userName && authState.user) {
+function updateHeaderForAuth() {
+    const userName = document.getElementById('user-name');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    if (authState.isAuthenticated && authState.user) {
         const displayName = authState.user.name || authState.user.username.split('@')[0];
-        userName.textContent = displayName;
+        if (userName) userName.textContent = displayName;
+        if (logoutBtn) logoutBtn.style.display = 'block';
+    } else {
+        if (userName) userName.textContent = '';
+        if (logoutBtn) logoutBtn.style.display = 'none';
     }
-
-    // Show site selection step
-    showStep('step-site-select');
-
-    // Initialize the rest of the app
-    initAppAfterAuth();
 }
 
 function showLoginError(message) {
     const loginScreen = document.getElementById('login-screen');
-    let errorEl = loginScreen.querySelector('.login-error');
+    if (!loginScreen) return;
 
+    let errorEl = loginScreen.querySelector('.login-error');
     if (!errorEl) {
         errorEl = document.createElement('p');
         errorEl.className = 'login-error';
         const loginBtn = document.getElementById('login-btn');
-        loginBtn.parentNode.insertBefore(errorEl, loginBtn.nextSibling);
+        if (loginBtn) {
+            loginBtn.parentNode.insertBefore(errorEl, loginBtn.nextSibling);
+        }
     }
 
     errorEl.textContent = message;
@@ -401,15 +417,26 @@ function handleSiteSelect(site, buttonElement) {
 }
 
 function handleFormSelect(formType) {
-    state.selectedForm = formType;
     const formConfig = CONFIG.forms[formType];
 
-    // Interest form doesn't support pre-fill, launch directly
+    // Forms that don't support pre-fill launch directly (no auth needed)
     if (!formConfig.supportsPreFill) {
+        state.selectedForm = formType;
         launchFormDirect();
-    } else {
-        goToSearch();
+        return;
     }
+
+    // Forms that require auth for search
+    if (formConfig.requiresAuth && !authState.isAuthenticated) {
+        // Show login screen and store pending form
+        showLoginScreen();
+        state.pendingFormType = formType;
+        return;
+    }
+
+    // User is authenticated or form doesn't require auth
+    state.selectedForm = formType;
+    goToSearch();
 }
 
 // Launch form directly without confirm screen (for Interest form)
@@ -624,7 +651,7 @@ function handleInstallPrompt(event) {
     event.preventDefault();
     deferredPrompt = event;
 
-    if (shouldShowInstallPrompt() && authState.isAuthenticated) {
+    if (shouldShowInstallPrompt()) {
         setTimeout(() => {
             showInstallBanner();
         }, 1500);
@@ -670,7 +697,7 @@ function checkiOSInstall() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isInStandaloneMode = window.navigator.standalone === true;
 
-    if (isIOS && !isInStandaloneMode && shouldShowInstallPrompt() && authState.isAuthenticated) {
+    if (isIOS && !isInStandaloneMode && shouldShowInstallPrompt()) {
         setTimeout(() => {
             if (!deferredPrompt && elements.installBanner) {
                 elements.installBanner.classList.remove('hidden');
@@ -751,10 +778,7 @@ function initDOMElements() {
     };
 }
 
-function initAppAfterAuth() {
-    // Render site buttons
-    renderSiteGrid();
-
+function initEventListeners() {
     // Form card selection
     elements.formCards.forEach(card => {
         card.addEventListener('click', () => handleFormSelect(card.dataset.form));
@@ -798,21 +822,31 @@ async function init() {
     // Initialize DOM elements
     initDOMElements();
 
+    // Render site buttons
+    renderSiteGrid();
+
+    // Set up event listeners
+    initEventListeners();
+
     // Set up login button
     if (elements.loginBtn) {
-        elements.loginBtn.addEventListener('click', signIn);
+        elements.loginBtn.addEventListener('click', () => signIn(state.pendingFormType));
     }
 
     // Set up logout button
     if (elements.logoutBtn) {
         elements.logoutBtn.addEventListener('click', signOut);
+        elements.logoutBtn.style.display = 'none'; // Hide by default
     }
 
     // Register service worker
     await registerServiceWorker();
 
-    // Initialize MSAL and check authentication
+    // Initialize MSAL (will check for existing session)
     await initializeMsal();
+
+    // Show the app (site selection) - no login required initially
+    showStep('step-site-select');
 }
 
 // Start app when DOM is ready
