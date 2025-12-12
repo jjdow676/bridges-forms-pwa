@@ -590,12 +590,16 @@ function displaySearchResults(results) {
 
     const html = results.map(contact => {
         const initials = getInitials(contact.name);
+        const birthdateDisplay = contact.birthdate ? formatBirthdate(contact.birthdate) : '';
         return `
             <div class="search-result-item" data-id="${contact.contactId}" data-name="${escapeHtml(contact.name)}" data-email="${escapeHtml(contact.email || '')}">
                 <div class="result-avatar">${initials}</div>
                 <div class="result-info">
                     <div class="result-name">${escapeHtml(contact.name)}</div>
-                    <div class="result-email">${escapeHtml(contact.email || 'No email')}</div>
+                    <div class="result-details">
+                        <span class="result-email">${escapeHtml(contact.email || 'No email')}</span>
+                        ${birthdateDisplay ? `<span class="result-birthdate">DOB: ${birthdateDisplay}</span>` : ''}
+                    </div>
                 </div>
             </div>
         `;
@@ -607,6 +611,14 @@ function displaySearchResults(results) {
     elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('click', () => handleContactSelect(item));
     });
+}
+
+// Format birthdate from YYYY-MM-DD to MM/DD/YYYY
+function formatBirthdate(dateString) {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    return `${parts[1]}/${parts[2]}/${parts[0]}`;
 }
 
 function handleContactSelect(item) {

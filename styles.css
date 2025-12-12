@@ -572,12 +572,28 @@ html, body {
     text-overflow: ellipsis;
 }
 
+.result-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
 .result-email {
     font-size: 0.875rem;
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.result-birthdate {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: var(--background);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
 }
 
 .no-results {
