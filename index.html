@@ -17,6 +17,23 @@
 </head>
 <body>
     <div id="app">
+        <!-- Install Banner (shown for non-installed users) -->
+        <div id="install-banner" class="install-banner hidden">
+            <div class="install-banner-content">
+                <div class="install-banner-icon">
+                    <img src="icons/icon-96.png" alt="App Icon" width="48" height="48">
+                </div>
+                <div class="install-banner-text">
+                    <strong>Install Bridges Forms</strong>
+                    <p>Add to your home screen for quick access</p>
+                </div>
+            </div>
+            <div class="install-banner-actions">
+                <button id="install-banner-btn" class="install-banner-install">Install</button>
+                <button id="dismiss-banner" class="install-banner-dismiss">Later</button>
+            </div>
+        </div>
+
         <!-- Header -->
         <header class="app-header">
             <img src="icons/bridges-logo.png" alt="Bridges" class="logo" onerror="this.style.display='none'">

@@ -81,7 +81,11 @@ const elements = {
     launchFormBtn: document.getElementById('launch-form-btn'),
     installPrompt: document.getElementById('install-prompt'),
     installBtn: document.getElementById('install-btn'),
-    dismissInstall: document.getElementById('dismiss-install')
+    dismissInstall: document.getElementById('dismiss-install'),
+    // New banner elements
+    installBanner: document.getElementById('install-banner'),
+    installBannerBtn: document.getElementById('install-banner-btn'),
+    dismissBanner: document.getElementById('dismiss-banner')
 };
 
 // Navigation
@@ -347,16 +351,52 @@ function escapeHtml(text) {
 // PWA Install
 let deferredPrompt = null;
 
+function isAppInstalled() {
+    // Check if running as standalone PWA
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        return true;
+    }
+    // iOS standalone check
+    if (window.navigator.standalone === true) {
+        return true;
+    }
+    return false;
+}
+
+function shouldShowInstallPrompt() {
+    // Don't show if already installed
+    if (isAppInstalled()) {
+        return false;
+    }
+    // Don't show if dismissed recently (within 7 days)
+    const dismissedTime = localStorage.getItem('installDismissedTime');
+    if (dismissedTime) {
+        const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24);
+        if (daysSinceDismissed < 7) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function handleInstallPrompt(event) {
     event.preventDefault();
     deferredPrompt = event;
 
-    // Check if already dismissed
-    if (localStorage.getItem('installDismissed')) {
-        return;
+    // Show install banner after a short delay if appropriate
+    if (shouldShowInstallPrompt()) {
+        setTimeout(() => {
+            showInstallBanner();
+        }, 1500); // Show after 1.5 seconds
     }
+}
 
-    elements.installPrompt.classList.remove('hidden');
+function showInstallBanner() {
+    if (deferredPrompt && shouldShowInstallPrompt()) {
+        elements.installBanner.classList.remove('hidden');
+        // Hide the bottom prompt if it's showing
+        elements.installPrompt.classList.add('hidden');
+    }
 }
 
 async function installApp() {
@@ -367,15 +407,50 @@ async function installApp() {
 
     if (outcome === 'accepted') {
         console.log('App installed');
+        localStorage.removeItem('installDismissedTime');
     }
 
     deferredPrompt = null;
+    elements.installBanner.classList.add('hidden');
     elements.installPrompt.classList.add('hidden');
 }
 
+function dismissInstallBanner() {
+    // Store dismissal time instead of permanent flag
+    localStorage.setItem('installDismissedTime', Date.now().toString());
+    elements.installBanner.classList.add('hidden');
+}
+
 function dismissInstall() {
-    localStorage.setItem('installDismissed', 'true');
+    localStorage.setItem('installDismissedTime', Date.now().toString());
     elements.installPrompt.classList.add('hidden');
+}
+
+// Check for iOS and show manual install instructions
+function checkiOSInstall() {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isInStandaloneMode = window.navigator.standalone === true;
+
+    if (isIOS && !isInStandaloneMode && shouldShowInstallPrompt()) {
+        // For iOS, we can't use the install prompt API, so show instructions
+        setTimeout(() => {
+            if (!deferredPrompt) { // Only show iOS banner if native prompt not available
+                elements.installBanner.classList.remove('hidden');
+                // Update banner text for iOS
+                const bannerText = elements.installBanner.querySelector('.install-banner-text p');
+                if (bannerText) {
+                    bannerText.textContent = 'Tap the share button and select "Add to Home Screen"';
+                }
+                // Hide the install button on iOS (manual process)
+                elements.installBannerBtn.textContent = 'How to Install';
+                elements.installBannerBtn.onclick = showIOSInstructions;
+            }
+        }, 2000);
+    }
+}
+
+function showIOSInstructions() {
+    alert('To install Bridges Forms:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to confirm\n\nThe app will appear on your home screen!');
 }
 
 // Render Site Grid
@@ -417,6 +492,13 @@ function initEventListeners() {
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
     elements.installBtn.addEventListener('click', installApp);
     elements.dismissInstall.addEventListener('click', dismissInstall);
+
+    // New banner install buttons
+    elements.installBannerBtn.addEventListener('click', installApp);
+    elements.dismissBanner.addEventListener('click', dismissInstallBanner);
+
+    // Check for iOS install prompt
+    checkiOSInstall();
 }
 
 // Service Worker Registration
