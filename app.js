@@ -27,7 +27,7 @@ const CONFIG = {
     forms: {
         interest: {
             name: 'Interest Form',
-            path: '/bridges-interest',
+            path: '/interest-form',
             supportsPreFill: false
         },
         application: {
