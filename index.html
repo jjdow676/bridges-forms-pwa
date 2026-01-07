@@ -3,20 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0070d2">
+    <meta name="theme-color" content="#3AAFA9">
     <meta name="description" content="Bridges Forms - Quick access to Interest, Application, and Enrollment forms">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Bridges Forms">
     <title>Bridges Forms</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-72.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
     <link rel="stylesheet" href="styles.css">
+    <!-- Microsoft Authentication Library -->
+    <script src="https://unpkg.com/@azure/msal-browser@3.6.0/lib/msal-browser.min.js"></script>
 </head>
 <body>
     <div id="app">
+        <!-- Login Screen (shown when not authenticated) -->
+        <section id="login-screen" class="login-screen">
+            <div class="login-container">
+                <img src="icons/icon-192.png" alt="Bridges Forms" class="login-logo">
+                <h1>Bridges Forms</h1>
+                <p class="login-description">Sign in with your Bridges account to access participant forms</p>
+                <button id="login-btn" class="login-btn">
+                    <svg class="microsoft-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                    </svg>
+                    Sign in with Microsoft
+                </button>
+                <p class="login-note">Only @bridgestowork.org accounts are allowed</p>
+            </div>
+        </section>
+
         <!-- Install Banner (shown for non-installed users) -->
         <div id="install-banner" class="install-banner hidden">
             <div class="install-banner-content">
@@ -36,8 +57,14 @@
 
         <!-- Header -->
         <header class="app-header">
-            <img src="icons/bridges-logo.png" alt="Bridges" class="logo" onerror="this.style.display='none'">
-            <h1>Bridges Forms</h1>
+            <div class="header-left">
+                <img src="icons/bridges-logo.png" alt="Bridges" class="logo" onerror="this.style.display='none'">
+                <h1>Bridges Forms</h1>
+            </div>
+            <div class="header-right">
+                <span id="user-name" class="user-name"></span>
+                <button id="logout-btn" class="logout-btn" title="Sign out">Sign Out</button>
+            </div>
         </header>
 
         <!-- Step 1: Site Selection -->
@@ -56,7 +83,7 @@
             <h2>Select Form Type</h2>
             <p class="step-description">Choose the form you want to fill out</p>
 
-            <!-- Job Placement Forms -->
+            <!-- Job Placement Forms (always shown) -->
             <h3 class="form-section-header">Job Placement Forms</h3>
             <div class="form-cards">
                 <button class="form-card" data-form="interest">
@@ -87,11 +114,11 @@
                 </button>
             </div>
 
-            <!-- Other Forms (site-specific) -->
-            <div id="other-forms-section" style="display: none;">
+            <!-- Other Forms (conditionally shown based on site) -->
+            <div id="other-forms-section" class="form-section hidden">
                 <h3 class="form-section-header">Other Forms</h3>
                 <div class="form-cards">
-                    <button class="form-card" data-form="preEtsInterest">
+                    <button class="form-card" data-form="preEtsInterest" id="preEtsCard">
                         <div class="card-icon">🎓</div>
                         <div class="card-content">
                             <h3>Pre-ETS Interest Form</h3>
@@ -100,7 +127,7 @@
                         <div class="card-arrow">→</div>
                     </button>
 
-                    <button class="form-card" data-form="educationalPlacement">
+                    <button class="form-card" data-form="educationalPlacement" id="educationalPlacementCard">
                         <div class="card-icon">🏫</div>
                         <div class="card-content">
                             <h3>Educational Placement Form</h3>
@@ -109,7 +136,7 @@
                         <div class="card-arrow">→</div>
                     </button>
 
-                    <button class="form-card" data-form="mipApplication">
+                    <button class="form-card" data-form="mipApplication" id="mipApplicationCard">
                         <div class="card-icon mip-icon">🗽</div>
                         <div class="card-content">
                             <h3>MIP Application Form</h3>
@@ -118,6 +145,35 @@
                         <div class="card-arrow">→</div>
                     </button>
                 </div>
+            </div>
+        </section>
+
+        <!-- Step 2.5: Search Choice (for Application form) -->
+        <section id="step-search-choice" class="step">
+            <button class="back-btn" id="back-to-forms-from-choice">← Back</button>
+            <h2><span id="choice-form-name">Application Form</span></h2>
+            <p class="step-description">How would you like to proceed?</p>
+
+            <div class="choice-cards">
+                <button class="choice-card" id="choice-search-btn">
+                    <div class="choice-icon">🔍</div>
+                    <div class="choice-content">
+                        <h3>Search for Participant</h3>
+                        <p>Pre-fill the form with existing participant info</p>
+                        <span class="choice-note">Requires staff sign-in</span>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </button>
+
+                <button class="choice-card" id="choice-blank-btn">
+                    <div class="choice-icon">📄</div>
+                    <div class="choice-content">
+                        <h3>Open Blank Form</h3>
+                        <p>Start with an empty form</p>
+                        <span class="choice-note">No sign-in needed</span>
+                    </div>
+                    <div class="card-arrow">→</div>
+                </button>
             </div>
         </section>
 

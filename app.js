@@ -1,9 +1,44 @@
 /**
  * Bridges Forms PWA
  * Quick access to Interest, Application, and Enrollment forms
+ * With Microsoft SSO Authentication (only for forms requiring participant search)
  */
 
-// Configuration
+// ======================
+// Microsoft SSO Configuration
+// ======================
+const msalConfig = {
+    auth: {
+        clientId: 'b734621f-54bd-40ca-ac79-09f78c143df5',
+        // Bridges organization tenant
+        authority: 'https://login.microsoftonline.com/bridgestowork.org',
+        // Azure Static Web Apps redirect URI
+        redirectUri: window.location.origin + window.location.pathname,
+        postLogoutRedirectUri: window.location.origin + window.location.pathname
+    },
+    cache: {
+        cacheLocation: 'localStorage',
+        storeAuthStateInCookie: false
+    }
+};
+
+// Login request scopes
+const loginRequest = {
+    scopes: ['openid', 'profile', 'email']
+};
+
+// MSAL instance (initialized after DOM ready)
+let msalInstance = null;
+
+// Authentication state
+const authState = {
+    isAuthenticated: false,
+    user: null
+};
+
+// ======================
+// App Configuration
+// ======================
 const CONFIG = {
     // Base URL for Experience Cloud site
     baseUrl: 'https://bridgestowork.my.site.com/forms/s',
@@ -24,51 +59,65 @@ const CONFIG = {
         'San Francisco'
     ],
     // Form paths
+    // requiresAuth: true means authentication is required to access search
     forms: {
         interest: {
             name: 'Interest Form',
             path: '/interest-form',
             supportsPreFill: false,
+            requiresAuth: false,  // No auth needed - opens directly
             category: 'participant'
         },
         application: {
             name: 'Application Form',
             path: '/bridges-application',
             supportsPreFill: true,
+            requiresAuth: true,   // Auth needed for participant search
             requiresContact: false,
-            category: 'participant'
+            category: 'participant',
+            programTypeFilter: 'jobPlacement'  // Filter by Job Placement programs
         },
         enrollment: {
             name: 'Enrollment Form',
             path: '/bridges-enrollment',
             supportsPreFill: true,
+            requiresAuth: true,   // Auth always required (needs contact)
             requiresContact: true,
-            category: 'participant'
+            category: 'participant',
+            programTypeFilter: 'jobPlacement'  // Filter by Job Placement programs
         },
         preEtsInterest: {
             name: 'Pre-ETS Interest Form',
             path: '/pre-ets-interest-form',
             supportsPreFill: false,
-            category: 'other',
-            siteRestrictions: ['Atlanta', 'Philadelphia', 'New York City']
+            requiresAuth: false,  // No auth needed - opens directly
+            category: 'other'
         },
         educationalPlacement: {
             name: 'Educational Placement Form',
             path: '/educational-placement-interest-form',
             supportsPreFill: false,
-            category: 'other',
-            siteRestrictions: ['Oakland', 'Richmond', 'San Francisco']
+            requiresAuth: false,  // No auth needed - opens directly
+            category: 'other'
         },
         mipApplication: {
             name: 'MIP Application Form',
             path: '/mip-application',
             supportsPreFill: false,
-            category: 'other',
-            siteRestrictions: ['New York City']
+            requiresAuth: false,  // No auth needed - opens directly
+            category: 'other'
         }
     },
     searchDebounceMs: 300,
-    minSearchLength: 2
+    minSearchLength: 2,
+    // Site-based form visibility (forms in "Other Forms" section)
+    siteFormRules: {
+        preEtsInterest: ['Atlanta', 'New York City', 'Philadelphia'],
+        educationalPlacement: ['Oakland', 'Richmond', 'San Francisco'],
+        mipApplication: ['New York City']
+    },
+    // Allowed email domain for authentication
+    allowedDomain: 'bridgestowork.org'
 };
 
 // App State
@@ -76,43 +125,212 @@ const state = {
     selectedSite: null,
     selectedForm: null,
     selectedContact: null,
-    searchTimeout: null
+    searchTimeout: null,
+    pendingFormType: null  // Store form type when auth is needed
 };
 
-// DOM Elements
-const elements = {
-    stepSiteSelect: document.getElementById('step-site-select'),
-    stepFormSelect: document.getElementById('step-form-select'),
-    stepSearch: document.getElementById('step-search'),
-    stepConfirm: document.getElementById('step-confirm'),
-    siteGrid: document.getElementById('site-grid'),
-    formCards: document.querySelectorAll('.form-card'),
-    backToSites: document.getElementById('back-to-sites'),
-    backToForms: document.getElementById('back-to-forms'),
-    backToSearch: document.getElementById('back-to-search'),
-    selectedFormName: document.getElementById('selected-form-name'),
-    selectedSiteName: document.getElementById('selected-site-name'),
-    searchInput: document.getElementById('search-input'),
-    searchSpinner: document.getElementById('search-spinner'),
-    searchResults: document.getElementById('search-results'),
-    skipSearchBtn: document.getElementById('skip-search-btn'),
-    confirmSite: document.getElementById('confirm-site'),
-    confirmForm: document.getElementById('confirm-form'),
-    confirmParticipant: document.getElementById('confirm-participant'),
-    confirmParticipantRow: document.getElementById('confirm-participant-row'),
-    confirmEmail: document.getElementById('confirm-email'),
-    confirmEmailRow: document.getElementById('confirm-email-row'),
-    launchFormBtn: document.getElementById('launch-form-btn'),
-    installPrompt: document.getElementById('install-prompt'),
-    installBtn: document.getElementById('install-btn'),
-    dismissInstall: document.getElementById('dismiss-install'),
-    // New banner elements
-    installBanner: document.getElementById('install-banner'),
-    installBannerBtn: document.getElementById('install-banner-btn'),
-    dismissBanner: document.getElementById('dismiss-banner')
-};
+// DOM Elements (will be populated after DOM ready)
+let elements = {};
 
-// Navigation
+// ======================
+// Authentication Functions
+// ======================
+
+async function initializeMsal() {
+    try {
+        // Check if MSAL library is loaded
+        if (typeof msal === 'undefined') {
+            console.error('MSAL library not loaded. Authentication will not work.');
+            return;
+        }
+
+        msalInstance = new msal.PublicClientApplication(msalConfig);
+        await msalInstance.initialize();
+        console.log('MSAL initialized successfully');
+
+        // Handle redirect callback
+        const response = await msalInstance.handleRedirectPromise();
+        if (response) {
+            handleAuthResponse(response);
+        } else {
+            // Check for existing session
+            const accounts = msalInstance.getAllAccounts();
+            if (accounts.length > 0) {
+                const account = accounts[0];
+                // Verify domain
+                if (isAllowedDomain(account.username)) {
+                    authState.isAuthenticated = true;
+                    authState.user = account;
+                    updateHeaderForAuth();
+                }
+            }
+        }
+    } catch (error) {
+        console.error('MSAL initialization error:', error);
+        msalInstance = null;
+    }
+}
+
+function isAllowedDomain(email) {
+    if (!email) return false;
+    const domain = email.split('@')[1];
+    return domain && domain.toLowerCase() === CONFIG.allowedDomain.toLowerCase();
+}
+
+async function signIn(pendingFormType = null) {
+    state.pendingFormType = pendingFormType;
+
+    // Check if MSAL is initialized
+    if (!msalInstance) {
+        console.error('MSAL not initialized. Attempting to reinitialize...');
+        await initializeMsal();
+        if (!msalInstance) {
+            showLoginError('Authentication service unavailable. Please refresh the page.');
+            return;
+        }
+    }
+
+    try {
+        // Show loading state on login screen if visible
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = 'Signing in...';
+        }
+
+        // Use popup for better UX on mobile
+        const response = await msalInstance.loginPopup(loginRequest);
+        handleAuthResponse(response);
+    } catch (error) {
+        console.error('Login error:', error);
+        // Reset button
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = `
+                <svg class="microsoft-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+                Sign in with Microsoft
+            `;
+        }
+
+        if (error.errorCode === 'user_cancelled') {
+            // User cancelled, go back to form selection
+            state.pendingFormType = null;
+            return;
+        }
+        showLoginError('Sign in failed. Please try again.');
+    }
+}
+
+function handleAuthResponse(response) {
+    if (response && response.account) {
+        const account = response.account;
+
+        // Verify domain
+        if (isAllowedDomain(account.username)) {
+            authState.isAuthenticated = true;
+            authState.user = account;
+            msalInstance.setActiveAccount(account);
+
+            // Hide login screen if showing
+            hideLoginScreen();
+            updateHeaderForAuth();
+
+            // If there was a pending form, continue to search
+            if (state.pendingFormType) {
+                state.selectedForm = state.pendingFormType;
+                state.pendingFormType = null;
+                goToSearch();
+            }
+        } else {
+            // Wrong domain
+            signOut();
+            showLoginError('Only @bridgestowork.org accounts are allowed. You signed in with: ' + account.username);
+        }
+    }
+}
+
+async function signOut() {
+    try {
+        authState.isAuthenticated = false;
+        authState.user = null;
+
+        // Clear MSAL cache
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) {
+            await msalInstance.logoutPopup({
+                account: accounts[0],
+                postLogoutRedirectUri: window.location.origin + window.location.pathname
+            });
+        }
+
+        updateHeaderForAuth();
+        goToSiteSelect();
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Force clear and show site select
+        localStorage.clear();
+        updateHeaderForAuth();
+        goToSiteSelect();
+    }
+}
+
+function showLoginScreen() {
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) {
+        loginScreen.classList.add('active');
+        // Clear any previous errors
+        const errorEl = loginScreen.querySelector('.login-error');
+        if (errorEl) errorEl.style.display = 'none';
+    }
+}
+
+function hideLoginScreen() {
+    const loginScreen = document.getElementById('login-screen');
+    if (loginScreen) loginScreen.classList.remove('active');
+}
+
+function updateHeaderForAuth() {
+    const userName = document.getElementById('user-name');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    if (authState.isAuthenticated && authState.user) {
+        const displayName = authState.user.name || authState.user.username.split('@')[0];
+        if (userName) userName.textContent = displayName;
+        if (logoutBtn) logoutBtn.style.display = 'block';
+    } else {
+        if (userName) userName.textContent = '';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+    }
+}
+
+function showLoginError(message) {
+    const loginScreen = document.getElementById('login-screen');
+    if (!loginScreen) return;
+
+    let errorEl = loginScreen.querySelector('.login-error');
+    if (!errorEl) {
+        errorEl = document.createElement('p');
+        errorEl.className = 'login-error';
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.parentNode.insertBefore(errorEl, loginBtn.nextSibling);
+        }
+    }
+
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+}
+
+// ======================
+// Navigation Functions
+// ======================
+
 function showStep(stepId) {
     document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
     document.getElementById(stepId).classList.add('active');
@@ -122,49 +340,50 @@ function goToSiteSelect() {
     state.selectedSite = null;
     state.selectedForm = null;
     state.selectedContact = null;
-    elements.searchInput.value = '';
-    elements.searchResults.innerHTML = '';
+    if (elements.searchInput) elements.searchInput.value = '';
+    if (elements.searchResults) elements.searchResults.innerHTML = '';
     // Clear site button selection
-    elements.siteGrid.querySelectorAll('.site-btn').forEach(btn => btn.classList.remove('selected'));
+    if (elements.siteGrid) {
+        elements.siteGrid.querySelectorAll('.site-btn').forEach(btn => btn.classList.remove('selected'));
+    }
     showStep('step-site-select');
 }
 
 function goToFormSelect() {
     state.selectedForm = null;
     state.selectedContact = null;
-    elements.searchInput.value = '';
-    elements.searchResults.innerHTML = '';
-
-    // Show/hide form cards based on site restrictions
-    updateFormVisibility();
-
+    if (elements.searchInput) elements.searchInput.value = '';
+    if (elements.searchResults) elements.searchResults.innerHTML = '';
+    // Update form visibility based on selected site
+    updateOtherFormsVisibility();
     showStep('step-form-select');
 }
 
-// Show/hide form cards based on selected site
-function updateFormVisibility() {
-    elements.formCards.forEach(card => {
-        const formType = card.dataset.form;
-        const formConfig = CONFIG.forms[formType];
+// Update Other Forms section visibility based on selected site
+function updateOtherFormsVisibility() {
+    const site = state.selectedSite;
+    const rules = CONFIG.siteFormRules;
 
-        if (formConfig && formConfig.siteRestrictions) {
-            // This form has site restrictions (array of allowed sites)
-            if (formConfig.siteRestrictions.includes(state.selectedSite)) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
+    // Check if Pre-ETS should be visible for this site
+    const showPreEts = rules.preEtsInterest.includes(site);
+    // Check if Educational Placement should be visible for this site
+    const showEducational = rules.educationalPlacement.includes(site);
+
+    // Show/hide individual cards
+    if (elements.preEtsCard) {
+        elements.preEtsCard.style.display = showPreEts ? 'flex' : 'none';
+    }
+    if (elements.educationalPlacementCard) {
+        elements.educationalPlacementCard.style.display = showEducational ? 'flex' : 'none';
+    }
+
+    // Show/hide the entire Other Forms section if neither form applies
+    if (elements.otherFormsSection) {
+        if (showPreEts || showEducational) {
+            elements.otherFormsSection.classList.remove('hidden');
         } else {
-            // No restriction, always show
-            card.style.display = 'flex';
+            elements.otherFormsSection.classList.add('hidden');
         }
-    });
-
-    // Show/hide "Other Forms" section based on whether any forms in that section are visible
-    const otherFormsSection = document.getElementById('other-forms-section');
-    if (otherFormsSection) {
-        const hasVisibleForms = Array.from(otherFormsSection.querySelectorAll('.form-card')).some(card => card.style.display !== 'none');
-        otherFormsSection.style.display = hasVisibleForms ? 'block' : 'none';
     }
 }
 
@@ -211,7 +430,10 @@ function goToConfirm() {
     showStep('step-confirm');
 }
 
-// Site Selection
+// ======================
+// Site & Form Selection
+// ======================
+
 function handleSiteSelect(site, buttonElement) {
     state.selectedSite = site;
     // Highlight selected button
@@ -221,16 +443,74 @@ function handleSiteSelect(site, buttonElement) {
     goToFormSelect();
 }
 
-// Form Selection
 function handleFormSelect(formType) {
-    state.selectedForm = formType;
     const formConfig = CONFIG.forms[formType];
 
-    // Interest form doesn't support pre-fill, launch directly
+    // Forms that don't support pre-fill launch directly (no auth needed)
     if (!formConfig.supportsPreFill) {
+        state.selectedForm = formType;
         launchFormDirect();
-    } else {
+        return;
+    }
+
+    // Forms that always require contact (Enrollment) - must authenticate
+    if (formConfig.requiresContact) {
+        if (!authState.isAuthenticated) {
+            showLoginScreen();
+            state.pendingFormType = formType;
+            return;
+        }
+        state.selectedForm = formType;
         goToSearch();
+        return;
+    }
+
+    // Forms that support optional pre-fill (Application) - show choice
+    if (formConfig.supportsPreFill && !formConfig.requiresContact) {
+        state.selectedForm = formType;
+        showSearchChoice();
+        return;
+    }
+
+    // Fallback - go to search if authenticated
+    state.selectedForm = formType;
+    goToSearch();
+}
+
+// Show search choice screen (for Application form)
+function showSearchChoice() {
+    const formConfig = CONFIG.forms[state.selectedForm];
+    elements.choiceFormName.textContent = formConfig.name;
+    showStep('step-search-choice');
+}
+
+// Handle choice to search for participant (requires auth)
+function handleChoiceSearch() {
+    if (!authState.isAuthenticated) {
+        showLoginScreen();
+        state.pendingFormType = state.selectedForm;
+        return;
+    }
+    goToSearch();
+}
+
+// Handle choice to open blank form (no auth needed)
+function handleChoiceBlank() {
+    launchFormDirect();
+}
+
+function goToSearchChoice() {
+    showStep('step-search-choice');
+}
+
+// Handle back button from search - go to choice screen for Application, form select for others
+function handleBackToForms() {
+    const formConfig = CONFIG.forms[state.selectedForm];
+    // If coming from a form with optional pre-fill (Application), go back to choice
+    if (formConfig && formConfig.supportsPreFill && !formConfig.requiresContact) {
+        goToSearchChoice();
+    } else {
+        goToFormSelect();
     }
 }
 
@@ -253,7 +533,10 @@ function launchFormDirect() {
     }, 500);
 }
 
-// Search
+// ======================
+// Search Functions
+// ======================
+
 async function searchContacts(searchTerm) {
     if (searchTerm.length < CONFIG.minSearchLength) {
         elements.searchResults.innerHTML = '';
@@ -263,10 +546,16 @@ async function searchContacts(searchTerm) {
     elements.searchSpinner.classList.add('active');
 
     try {
-        // Build URL with search term and site filter
+        // Build URL with search term, site filter, and program type filter
         let url = `${CONFIG.apiUrl}?searchTerm=${encodeURIComponent(searchTerm)}`;
         if (state.selectedSite) {
             url += `&site=${encodeURIComponent(state.selectedSite)}`;
+        }
+
+        // Add program type filter if the form requires it
+        const formConfig = CONFIG.forms[state.selectedForm];
+        if (formConfig && formConfig.programTypeFilter) {
+            url += `&programType=${encodeURIComponent(formConfig.programTypeFilter)}`;
         }
 
         const response = await fetch(
@@ -309,12 +598,16 @@ function displaySearchResults(results) {
 
     const html = results.map(contact => {
         const initials = getInitials(contact.name);
+        const birthdateDisplay = contact.birthdate ? formatBirthdate(contact.birthdate) : '';
         return `
             <div class="search-result-item" data-id="${contact.contactId}" data-name="${escapeHtml(contact.name)}" data-email="${escapeHtml(contact.email || '')}">
                 <div class="result-avatar">${initials}</div>
                 <div class="result-info">
                     <div class="result-name">${escapeHtml(contact.name)}</div>
-                    <div class="result-email">${escapeHtml(contact.email || 'No email')}</div>
+                    <div class="result-details">
+                        <span class="result-email">${escapeHtml(contact.email || 'No email')}</span>
+                        ${birthdateDisplay ? `<span class="result-birthdate">DOB: ${birthdateDisplay}</span>` : ''}
+                    </div>
                 </div>
             </div>
         `;
@@ -326,6 +619,14 @@ function displaySearchResults(results) {
     elements.searchResults.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('click', () => handleContactSelect(item));
     });
+}
+
+// Format birthdate from YYYY-MM-DD to MM/DD/YYYY
+function formatBirthdate(dateString) {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    return `${parts[1]}/${parts[2]}/${parts[0]}`;
 }
 
 function handleContactSelect(item) {
@@ -356,7 +657,10 @@ function handleSearchInput(event) {
     }, CONFIG.searchDebounceMs);
 }
 
+// ======================
 // Launch Form
+// ======================
+
 function launchForm() {
     const formConfig = CONFIG.forms[state.selectedForm];
     let url = CONFIG.baseUrl + formConfig.path;
@@ -386,7 +690,10 @@ function launchForm() {
     }, 500);
 }
 
+// ======================
 // Utilities
+// ======================
+
 function getInitials(name) {
     if (!name) return '?';
     const parts = name.split(' ').filter(p => p.length > 0);
@@ -403,15 +710,16 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// PWA Install
+// ======================
+// PWA Install Functions
+// ======================
+
 let deferredPrompt = null;
 
 function isAppInstalled() {
-    // Check if running as standalone PWA
     if (window.matchMedia('(display-mode: standalone)').matches) {
         return true;
     }
-    // iOS standalone check
     if (window.navigator.standalone === true) {
         return true;
     }
@@ -419,11 +727,9 @@ function isAppInstalled() {
 }
 
 function shouldShowInstallPrompt() {
-    // Don't show if already installed
     if (isAppInstalled()) {
         return false;
     }
-    // Don't show if dismissed recently (within 7 days)
     const dismissedTime = localStorage.getItem('installDismissedTime');
     if (dismissedTime) {
         const daysSinceDismissed = (Date.now() - parseInt(dismissedTime)) / (1000 * 60 * 60 * 24);
@@ -438,19 +744,19 @@ function handleInstallPrompt(event) {
     event.preventDefault();
     deferredPrompt = event;
 
-    // Show install banner after a short delay if appropriate
     if (shouldShowInstallPrompt()) {
         setTimeout(() => {
             showInstallBanner();
-        }, 1500); // Show after 1.5 seconds
+        }, 1500);
     }
 }
 
 function showInstallBanner() {
-    if (deferredPrompt && shouldShowInstallPrompt()) {
+    if (deferredPrompt && shouldShowInstallPrompt() && elements.installBanner) {
         elements.installBanner.classList.remove('hidden');
-        // Hide the bottom prompt if it's showing
-        elements.installPrompt.classList.add('hidden');
+        if (elements.installPrompt) {
+            elements.installPrompt.classList.add('hidden');
+        }
     }
 }
 
@@ -466,39 +772,36 @@ async function installApp() {
     }
 
     deferredPrompt = null;
-    elements.installBanner.classList.add('hidden');
-    elements.installPrompt.classList.add('hidden');
+    if (elements.installBanner) elements.installBanner.classList.add('hidden');
+    if (elements.installPrompt) elements.installPrompt.classList.add('hidden');
 }
 
 function dismissInstallBanner() {
-    // Store dismissal time instead of permanent flag
     localStorage.setItem('installDismissedTime', Date.now().toString());
-    elements.installBanner.classList.add('hidden');
+    if (elements.installBanner) elements.installBanner.classList.add('hidden');
 }
 
 function dismissInstall() {
     localStorage.setItem('installDismissedTime', Date.now().toString());
-    elements.installPrompt.classList.add('hidden');
+    if (elements.installPrompt) elements.installPrompt.classList.add('hidden');
 }
 
-// Check for iOS and show manual install instructions
 function checkiOSInstall() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isInStandaloneMode = window.navigator.standalone === true;
 
     if (isIOS && !isInStandaloneMode && shouldShowInstallPrompt()) {
-        // For iOS, we can't use the install prompt API, so show instructions
         setTimeout(() => {
-            if (!deferredPrompt) { // Only show iOS banner if native prompt not available
+            if (!deferredPrompt && elements.installBanner) {
                 elements.installBanner.classList.remove('hidden');
-                // Update banner text for iOS
                 const bannerText = elements.installBanner.querySelector('.install-banner-text p');
                 if (bannerText) {
                     bannerText.textContent = 'Tap the share button and select "Add to Home Screen"';
                 }
-                // Hide the install button on iOS (manual process)
-                elements.installBannerBtn.textContent = 'How to Install';
-                elements.installBannerBtn.onclick = showIOSInstructions;
+                if (elements.installBannerBtn) {
+                    elements.installBannerBtn.textContent = 'How to Install';
+                    elements.installBannerBtn.onclick = showIOSInstructions;
+                }
             }
         }, 2000);
     }
@@ -508,24 +811,73 @@ function showIOSInstructions() {
     alert('To install Bridges Forms:\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to confirm\n\nThe app will appear on your home screen!');
 }
 
-// Render Site Grid
+// ======================
+// Render Functions
+// ======================
+
 function renderSiteGrid() {
     const html = CONFIG.sites.map(site =>
         `<button class="site-btn" data-site="${escapeHtml(site)}">${escapeHtml(site)}</button>`
     ).join('');
     elements.siteGrid.innerHTML = html;
 
-    // Add click handlers
     elements.siteGrid.querySelectorAll('.site-btn').forEach(btn => {
         btn.addEventListener('click', () => handleSiteSelect(btn.dataset.site, btn));
     });
 }
 
-// Event Listeners
-function initEventListeners() {
-    // Render site buttons
-    renderSiteGrid();
+// ======================
+// Initialization
+// ======================
 
+function initDOMElements() {
+    elements = {
+        stepSiteSelect: document.getElementById('step-site-select'),
+        stepFormSelect: document.getElementById('step-form-select'),
+        stepSearch: document.getElementById('step-search'),
+        stepConfirm: document.getElementById('step-confirm'),
+        siteGrid: document.getElementById('site-grid'),
+        formCards: document.querySelectorAll('.form-card'),
+        backToSites: document.getElementById('back-to-sites'),
+        backToForms: document.getElementById('back-to-forms'),
+        backToSearch: document.getElementById('back-to-search'),
+        selectedFormName: document.getElementById('selected-form-name'),
+        selectedSiteName: document.getElementById('selected-site-name'),
+        searchInput: document.getElementById('search-input'),
+        searchSpinner: document.getElementById('search-spinner'),
+        searchResults: document.getElementById('search-results'),
+        skipSearchBtn: document.getElementById('skip-search-btn'),
+        confirmSite: document.getElementById('confirm-site'),
+        confirmForm: document.getElementById('confirm-form'),
+        confirmParticipant: document.getElementById('confirm-participant'),
+        confirmParticipantRow: document.getElementById('confirm-participant-row'),
+        confirmEmail: document.getElementById('confirm-email'),
+        confirmEmailRow: document.getElementById('confirm-email-row'),
+        launchFormBtn: document.getElementById('launch-form-btn'),
+        installPrompt: document.getElementById('install-prompt'),
+        installBtn: document.getElementById('install-btn'),
+        dismissInstall: document.getElementById('dismiss-install'),
+        installBanner: document.getElementById('install-banner'),
+        installBannerBtn: document.getElementById('install-banner-btn'),
+        dismissBanner: document.getElementById('dismiss-banner'),
+        otherFormsSection: document.getElementById('other-forms-section'),
+        preEtsCard: document.getElementById('preEtsCard'),
+        educationalPlacementCard: document.getElementById('educationalPlacementCard'),
+        // Auth elements
+        loginScreen: document.getElementById('login-screen'),
+        loginBtn: document.getElementById('login-btn'),
+        logoutBtn: document.getElementById('logout-btn'),
+        userName: document.getElementById('user-name'),
+        // Search choice elements
+        stepSearchChoice: document.getElementById('step-search-choice'),
+        choiceFormName: document.getElementById('choice-form-name'),
+        choiceSearchBtn: document.getElementById('choice-search-btn'),
+        choiceBlankBtn: document.getElementById('choice-blank-btn'),
+        backToFormsFromChoice: document.getElementById('back-to-forms-from-choice')
+    };
+}
+
+function initEventListeners() {
     // Form card selection
     elements.formCards.forEach(card => {
         card.addEventListener('click', () => handleFormSelect(card.dataset.form));
@@ -533,8 +885,19 @@ function initEventListeners() {
 
     // Navigation
     elements.backToSites.addEventListener('click', goToSiteSelect);
-    elements.backToForms.addEventListener('click', goToFormSelect);
+    elements.backToForms.addEventListener('click', handleBackToForms);
     elements.backToSearch.addEventListener('click', goToSearch);
+
+    // Search choice screen navigation
+    if (elements.backToFormsFromChoice) {
+        elements.backToFormsFromChoice.addEventListener('click', goToFormSelect);
+    }
+    if (elements.choiceSearchBtn) {
+        elements.choiceSearchBtn.addEventListener('click', handleChoiceSearch);
+    }
+    if (elements.choiceBlankBtn) {
+        elements.choiceBlankBtn.addEventListener('click', handleChoiceBlank);
+    }
 
     // Search
     elements.searchInput.addEventListener('input', handleSearchInput);
@@ -545,18 +908,15 @@ function initEventListeners() {
 
     // PWA Install
     window.addEventListener('beforeinstallprompt', handleInstallPrompt);
-    elements.installBtn.addEventListener('click', installApp);
-    elements.dismissInstall.addEventListener('click', dismissInstall);
-
-    // New banner install buttons
-    elements.installBannerBtn.addEventListener('click', installApp);
-    elements.dismissBanner.addEventListener('click', dismissInstallBanner);
+    if (elements.installBtn) elements.installBtn.addEventListener('click', installApp);
+    if (elements.dismissInstall) elements.dismissInstall.addEventListener('click', dismissInstall);
+    if (elements.installBannerBtn) elements.installBannerBtn.addEventListener('click', installApp);
+    if (elements.dismissBanner) elements.dismissBanner.addEventListener('click', dismissInstallBanner);
 
     // Check for iOS install prompt
     checkiOSInstall();
 }
 
-// Service Worker Registration
 async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         try {
@@ -568,10 +928,35 @@ async function registerServiceWorker() {
     }
 }
 
-// Initialize
-function init() {
+async function init() {
+    // Initialize DOM elements
+    initDOMElements();
+
+    // Render site buttons
+    renderSiteGrid();
+
+    // Set up event listeners
     initEventListeners();
-    registerServiceWorker();
+
+    // Set up login button
+    if (elements.loginBtn) {
+        elements.loginBtn.addEventListener('click', () => signIn(state.pendingFormType));
+    }
+
+    // Set up logout button
+    if (elements.logoutBtn) {
+        elements.logoutBtn.addEventListener('click', signOut);
+        elements.logoutBtn.style.display = 'none'; // Hide by default
+    }
+
+    // Register service worker
+    await registerServiceWorker();
+
+    // Initialize MSAL (will check for existing session)
+    await initializeMsal();
+
+    // Show the app (site selection) - no login required initially
+    showStep('step-site-select');
 }
 
 // Start app when DOM is ready
