@@ -6,10 +6,10 @@
 }
 
 :root {
-    --primary-color: #3AAFA9;
-    --primary-hover: #2B7A78;
+    --primary-color: #0070d2;
+    --primary-hover: #005bb5;
     --secondary-color: #706e6b;
-    --success-color: #3AAFA9;
+    --success-color: #2e844a;
     --background: #f3f3f3;
     --card-bg: #ffffff;
     --text-primary: #080707;
@@ -19,116 +19,6 @@
     --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.15);
     --radius: 8px;
     --radius-lg: 12px;
-}
-
-/* ======================
-   Login Screen Styles
-   ====================== */
-.login-screen {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    z-index: 1000;
-}
-
-.login-screen.active {
-    display: flex;
-}
-
-.login-container {
-    text-align: center;
-    max-width: 400px;
-    width: 100%;
-    padding: 40px 32px;
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
-}
-
-.login-logo {
-    width: 100px;
-    height: 100px;
-    margin-bottom: 24px;
-    border-radius: 20px;
-    box-shadow: 0 4px 12px rgba(58, 175, 169, 0.3);
-}
-
-.login-container h1 {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #3AAFA9;
-    margin-bottom: 12px;
-}
-
-.login-description {
-    color: #6c757d;
-    font-size: 1rem;
-    margin-bottom: 32px;
-    line-height: 1.5;
-}
-
-.login-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    width: 100%;
-    padding: 14px 24px;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #333;
-    background: white;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.login-btn:hover {
-    border-color: #3AAFA9;
-    background: #f8f9fa;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.login-btn:active {
-    transform: translateY(0);
-}
-
-.login-btn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.microsoft-logo {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-}
-
-.login-note {
-    margin-top: 20px;
-    font-size: 0.85rem;
-    color: #6c757d;
-}
-
-.login-error {
-    margin-top: 16px;
-    padding: 12px;
-    background: #fff5f5;
-    border: 1px solid #fed7d7;
-    border-radius: 8px;
-    color: #c53030;
-    font-size: 0.9rem;
 }
 
 html, body {
@@ -151,60 +41,22 @@ html, body {
 /* Header */
 .app-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 16px 0;
+    gap: 12px;
+    padding: 20px 0;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 24px;
 }
 
-.header-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
 .app-header .logo {
-    height: 36px;
+    height: 40px;
     width: auto;
 }
 
 .app-header h1 {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--primary-color);
-}
-
-.user-name {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.logout-btn {
-    padding: 6px 12px;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    background: transparent;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.logout-btn:hover {
-    color: #c53030;
-    border-color: #c53030;
-    background: #fff5f5;
 }
 
 /* Steps */
@@ -316,20 +168,6 @@ html, body {
     margin-top: 0;
 }
 
-/* Form Sections */
-.form-section {
-    margin-bottom: 16px;
-}
-
-.form-section.hidden {
-    display: none;
-}
-
-/* Generic hidden class */
-.hidden {
-    display: none !important;
-}
-
 /* Form Cards */
 .form-cards {
     display: flex;
@@ -373,6 +211,10 @@ html, body {
     border-radius: var(--radius);
 }
 
+.card-icon.mip-icon {
+    background: linear-gradient(135deg, #00695c 0%, #26a69a 100%);
+}
+
 .card-content {
     flex: 1;
 }
@@ -391,75 +233,6 @@ html, body {
 .card-arrow {
     font-size: 1.5rem;
     color: var(--text-secondary);
-}
-
-/* Choice Cards (for Application form search/blank choice) */
-.choice-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 24px;
-}
-
-.choice-card {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    padding: 24px 20px;
-    background: var(--card-bg);
-    border: 2px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    text-align: left;
-    transition: all 0.2s ease;
-    width: 100%;
-}
-
-.choice-card:hover {
-    border-color: var(--primary-color);
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
-}
-
-.choice-card:active {
-    transform: translateY(0);
-}
-
-.choice-icon {
-    font-size: 2.5rem;
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--background);
-    border-radius: var(--radius);
-}
-
-.choice-content {
-    flex: 1;
-}
-
-.choice-content h3 {
-    font-size: 1.15rem;
-    font-weight: 600;
-    margin-bottom: 4px;
-}
-
-.choice-content p {
-    font-size: 0.9rem;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-}
-
-.choice-note {
-    display: inline-block;
-    font-size: 0.75rem;
-    color: var(--primary-color);
-    background: rgba(58, 175, 169, 0.1);
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-weight: 500;
 }
 
 /* Search */
@@ -572,28 +345,12 @@ html, body {
     text-overflow: ellipsis;
 }
 
-.result-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-}
-
 .result-email {
     font-size: 0.875rem;
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.result-birthdate {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    background: var(--background);
-    padding: 2px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
 }
 
 .no-results {
