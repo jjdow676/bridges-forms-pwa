@@ -49,20 +49,22 @@ const CONFIG = {
             name: 'Pre-ETS Interest Form',
             path: '/pre-ets-interest-form',
             supportsPreFill: false,
-            category: 'jobPlacement'
+            category: 'other',
+            siteRestrictions: ['Atlanta', 'Philadelphia', 'New York City']
         },
         educationalPlacement: {
             name: 'Educational Placement Form',
             path: '/educational-placement-interest-form',
             supportsPreFill: false,
-            category: 'jobPlacement'
+            category: 'other',
+            siteRestrictions: ['Oakland', 'Richmond', 'San Francisco']
         },
         mipApplication: {
             name: 'MIP Application Form',
             path: '/mip-application',
             supportsPreFill: false,
             category: 'other',
-            siteRestriction: 'New York City'  // Only show for NYC
+            siteRestrictions: ['New York City']
         }
     },
     searchDebounceMs: 300,
@@ -145,9 +147,9 @@ function updateFormVisibility() {
         const formType = card.dataset.form;
         const formConfig = CONFIG.forms[formType];
 
-        if (formConfig && formConfig.siteRestriction) {
-            // This form has a site restriction
-            if (formConfig.siteRestriction === state.selectedSite) {
+        if (formConfig && formConfig.siteRestrictions) {
+            // This form has site restrictions (array of allowed sites)
+            if (formConfig.siteRestrictions.includes(state.selectedSite)) {
                 card.style.display = 'flex';
             } else {
                 card.style.display = 'none';
@@ -161,7 +163,6 @@ function updateFormVisibility() {
     // Show/hide "Other Forms" section based on whether any forms in that section are visible
     const otherFormsSection = document.getElementById('other-forms-section');
     if (otherFormsSection) {
-        const visibleOtherForms = otherFormsSection.querySelectorAll('.form-card[style="display: flex"]');
         const hasVisibleForms = Array.from(otherFormsSection.querySelectorAll('.form-card')).some(card => card.style.display !== 'none');
         otherFormsSection.style.display = hasVisibleForms ? 'block' : 'none';
     }
