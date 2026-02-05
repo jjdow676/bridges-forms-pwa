@@ -364,10 +364,10 @@ function updateOtherFormsVisibility() {
     const site = state.selectedSite;
     const rules = CONFIG.siteFormRules;
 
-    // Check if Pre-ETS should be visible for this site
+    // Check which forms should be visible for this site
     const showPreEts = rules.preEtsInterest.includes(site);
-    // Check if Educational Placement should be visible for this site
     const showEducational = rules.educationalPlacement.includes(site);
+    const showMip = rules.mipApplication.includes(site);
 
     // Show/hide individual cards
     if (elements.preEtsCard) {
@@ -376,10 +376,13 @@ function updateOtherFormsVisibility() {
     if (elements.educationalPlacementCard) {
         elements.educationalPlacementCard.style.display = showEducational ? 'flex' : 'none';
     }
+    if (elements.mipApplicationCard) {
+        elements.mipApplicationCard.style.display = showMip ? 'flex' : 'none';
+    }
 
-    // Show/hide the entire Other Forms section if neither form applies
+    // Show/hide the entire Other Forms section if no forms apply
     if (elements.otherFormsSection) {
-        if (showPreEts || showEducational) {
+        if (showPreEts || showEducational || showMip) {
             elements.otherFormsSection.classList.remove('hidden');
         } else {
             elements.otherFormsSection.classList.add('hidden');
@@ -863,6 +866,7 @@ function initDOMElements() {
         otherFormsSection: document.getElementById('other-forms-section'),
         preEtsCard: document.getElementById('preEtsCard'),
         educationalPlacementCard: document.getElementById('educationalPlacementCard'),
+        mipApplicationCard: document.getElementById('mipApplicationCard'),
         // Auth elements
         loginScreen: document.getElementById('login-screen'),
         loginBtn: document.getElementById('login-btn'),
