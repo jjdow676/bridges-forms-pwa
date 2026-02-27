@@ -2,6 +2,14 @@
   "globalHeaders": {
     "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://alcdn.msauth.net https://unpkg.com; connect-src 'self' https://login.microsoftonline.com https://*.msauth.net https://bridgestowork.my.site.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';"
   },
+  "routes": [
+    {
+      "route": "/sw.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    }
+  ],
   "navigationFallback": {
     "rewrite": "/index.html"
   }
