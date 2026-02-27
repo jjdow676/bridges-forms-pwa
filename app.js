@@ -162,12 +162,23 @@ async function initializeMsal() {
         if (response) {
             handleAuthResponse(response);
         } else {
-            // Check for existing session
+            // Check for existing session and silently refresh token
             const accounts = msalInstance.getAllAccounts();
             if (accounts.length > 0) {
                 const account = accounts[0];
                 // Verify domain
                 if (isAllowedDomain(account.username)) {
+                    msalInstance.setActiveAccount(account);
+                    // Silently refresh the token to keep the session alive
+                    // This uses the refresh token (valid ~90 days) to get a new access token
+                    try {
+                        await msalInstance.acquireTokenSilent({
+                            scopes: loginRequest.scopes,
+                            account: account
+                        });
+                    } catch (silentError) {
+                        console.log('Silent token refresh failed, session may require re-auth');
+                    }
                     authState.isAuthenticated = true;
                     authState.user = account;
                     updateHeaderForAuth();
