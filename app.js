@@ -136,6 +136,13 @@ let elements = {};
 // Authentication Functions
 // ======================
 
+// Detect if running as an installed PWA (standalone mode)
+// Popups are blocked/broken in standalone mode, so we use redirects instead
+function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+}
+
 async function initializeMsal() {
     try {
         // Check if MSAL library is loaded
@@ -180,6 +187,14 @@ function isAllowedDomain(email) {
 async function signIn(pendingFormType = null) {
     state.pendingFormType = pendingFormType;
 
+    // Persist pending form type for redirect flow (page reloads during redirect)
+    if (pendingFormType) {
+        sessionStorage.setItem('pendingFormType', pendingFormType);
+    }
+    if (state.selectedSite) {
+        sessionStorage.setItem('pendingSite', state.selectedSite);
+    }
+
     // Check if MSAL is initialized
     if (!msalInstance) {
         console.error('MSAL not initialized. Attempting to reinitialize...');
@@ -198,7 +213,14 @@ async function signIn(pendingFormType = null) {
             loginBtn.innerHTML = 'Signing in...';
         }
 
-        // Use popup for better UX on mobile
+        // Use redirect in standalone/installed PWA mode (popups are blocked),
+        // popup in regular browser mode
+        if (isStandaloneMode()) {
+            await msalInstance.loginRedirect(loginRequest);
+            // Page will redirect — no code runs after this
+            return;
+        }
+
         const response = await msalInstance.loginPopup(loginRequest);
         handleAuthResponse(response);
     } catch (error) {
@@ -241,6 +263,17 @@ function handleAuthResponse(response) {
             hideLoginScreen();
             updateHeaderForAuth();
 
+            // Restore pending state from sessionStorage (redirect flow reloads the page)
+            if (!state.pendingFormType) {
+                state.pendingFormType = sessionStorage.getItem('pendingFormType');
+            }
+            if (!state.selectedSite) {
+                state.selectedSite = sessionStorage.getItem('pendingSite');
+            }
+            // Clean up
+            sessionStorage.removeItem('pendingFormType');
+            sessionStorage.removeItem('pendingSite');
+
             // If there was a pending form, continue to search
             if (state.pendingFormType) {
                 state.selectedForm = state.pendingFormType;
@@ -260,21 +293,31 @@ async function signOut() {
         authState.isAuthenticated = false;
         authState.user = null;
 
-        // Clear MSAL cache
         const accounts = msalInstance.getAllAccounts();
         if (accounts.length > 0) {
-            await msalInstance.logoutPopup({
+            const logoutOptions = {
                 account: accounts[0],
                 postLogoutRedirectUri: window.location.origin + window.location.pathname
-            });
+            };
+
+            // Use redirect in standalone/installed PWA mode (popups are blocked)
+            if (isStandaloneMode()) {
+                await msalInstance.logoutRedirect(logoutOptions);
+                return;
+            }
+
+            await msalInstance.logoutPopup(logoutOptions);
         }
 
         updateHeaderForAuth();
         goToSiteSelect();
     } catch (error) {
         console.error('Logout error:', error);
-        // Force clear and show site select
-        localStorage.clear();
+        // Clear only MSAL-related storage, not all localStorage
+        const keysToRemove = Object.keys(localStorage).filter(key =>
+            key.startsWith('msal.') || key.includes('login.windows.net')
+        );
+        keysToRemove.forEach(key => localStorage.removeItem(key));
         updateHeaderForAuth();
         goToSiteSelect();
     }
