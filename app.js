@@ -136,11 +136,13 @@ let elements = {};
 // Authentication Functions
 // ======================
 
-// Detect if running as an installed PWA (standalone mode)
-// Popups are blocked/broken in standalone mode, so we use redirects instead
+// Detect if running in an environment where popups are blocked:
+// installed PWA, Nativefier/Electron desktop app, etc.
 function isStandaloneMode() {
     return window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true;
+        || window.navigator.standalone === true
+        || navigator.userAgent.includes('Electron')
+        || typeof nativefier !== 'undefined';
 }
 
 async function initializeMsal() {
@@ -245,6 +247,14 @@ async function signIn(pendingFormType = null) {
             state.pendingFormType = null;
             return;
         }
+
+        // Popup blocked/failed — fall back to redirect auth automatically
+        if (error.errorCode === 'popup_window_error' || error.errorCode === 'popup_blocked') {
+            console.log('Popup blocked, falling back to redirect auth');
+            await msalInstance.loginRedirect(loginRequest);
+            return;
+        }
+
         showLoginError('Sign in failed. Please try again.');
     }
 }
