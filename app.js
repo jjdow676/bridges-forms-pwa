@@ -106,6 +106,48 @@ const CONFIG = {
             supportsPreFill: false,
             requiresAuth: false,  // No auth needed - opens directly
             category: 'other'
+        },
+        referralForm: {
+            name: 'Referral Form',
+            path: '/referral-form',
+            supportsPreFill: false,
+            requiresAuth: false,  // No auth needed - educators fill it out directly
+            category: 'other'
+        },
+        employmentVerification: {
+            name: 'Employment Verification',
+            path: '/employment-verification',
+            supportsPreFill: false,
+            requiresAuth: false,  // No auth needed - employers fill it out directly
+            category: 'employer'
+        },
+        preEtsTravelConsent: {
+            name: 'Pre-ETS Travel Consent',
+            path: '/pre-ets-travel-consent',
+            supportsPreFill: false,
+            requiresAuth: false,
+            category: 'other'
+        },
+        preEtsMediaConsent: {
+            name: 'Pre-ETS Media Consent',
+            path: '/pre-ets-media-consent',
+            supportsPreFill: false,
+            requiresAuth: false,
+            category: 'other'
+        },
+        preEtsConsent: {
+            name: 'Pre-ETS DOE Consent Form',
+            path: '/pre-ets-consent',
+            supportsPreFill: false,
+            requiresAuth: false,
+            category: 'other'
+        },
+        preEtsEnrollment: {
+            name: 'Pre-ETS Enrollment Form',
+            path: '/pre-ets-enrollment',
+            supportsPreFill: false,
+            requiresAuth: false,
+            category: 'other'
         }
     },
     searchDebounceMs: 300,
@@ -114,7 +156,13 @@ const CONFIG = {
     siteFormRules: {
         preEtsInterest: ['Atlanta', 'New York City', 'Philadelphia'],
         educationalPlacement: ['Oakland', 'Richmond', 'San Francisco'],
-        mipApplication: ['New York City']
+        mipApplication: ['New York City'],
+        referralForm: ['Oakland', 'Richmond', 'San Francisco'],
+        employmentVerification: ['Atlanta', 'Boston', 'Chicago', 'Dallas', 'Fort Worth', 'Los Angeles', 'New York City', 'Oakland', 'Philadelphia', 'Richmond', 'San Francisco'],
+        preEtsTravelConsent: ['New York City'],
+        preEtsMediaConsent: ['New York City'],
+        preEtsConsent: ['New York City'],
+        preEtsEnrollment: ['New York City']
     },
     // Allowed email domain for authentication
     allowedDomain: 'bridgestowork.org'
@@ -432,6 +480,12 @@ function updateOtherFormsVisibility() {
     const showPreEts = rules.preEtsInterest.includes(site);
     const showEducational = rules.educationalPlacement.includes(site);
     const showMip = rules.mipApplication.includes(site);
+    const showReferral = rules.referralForm.includes(site);
+    const showEmploymentVerification = rules.employmentVerification.includes(site);
+    const showPreEtsTravelConsent = rules.preEtsTravelConsent.includes(site);
+    const showPreEtsMediaConsent = rules.preEtsMediaConsent.includes(site);
+    const showPreEtsConsent = rules.preEtsConsent.includes(site);
+    const showPreEtsEnrollment = rules.preEtsEnrollment.includes(site);
 
     // Show/hide individual cards
     if (elements.preEtsCard) {
@@ -443,10 +497,28 @@ function updateOtherFormsVisibility() {
     if (elements.mipApplicationCard) {
         elements.mipApplicationCard.style.display = showMip ? 'flex' : 'none';
     }
+    if (elements.referralFormCard) {
+        elements.referralFormCard.style.display = showReferral ? 'flex' : 'none';
+    }
+    if (elements.employmentVerificationCard) {
+        elements.employmentVerificationCard.style.display = showEmploymentVerification ? 'flex' : 'none';
+    }
+    if (elements.preEtsTravelConsentCard) {
+        elements.preEtsTravelConsentCard.style.display = showPreEtsTravelConsent ? 'flex' : 'none';
+    }
+    if (elements.preEtsMediaConsentCard) {
+        elements.preEtsMediaConsentCard.style.display = showPreEtsMediaConsent ? 'flex' : 'none';
+    }
+    if (elements.preEtsConsentCard) {
+        elements.preEtsConsentCard.style.display = showPreEtsConsent ? 'flex' : 'none';
+    }
+    if (elements.preEtsEnrollmentCard) {
+        elements.preEtsEnrollmentCard.style.display = showPreEtsEnrollment ? 'flex' : 'none';
+    }
 
     // Show/hide the entire Other Forms section if no forms apply
     if (elements.otherFormsSection) {
-        if (showPreEts || showEducational || showMip) {
+        if (showPreEts || showEducational || showMip || showReferral || showEmploymentVerification || showPreEtsTravelConsent || showPreEtsMediaConsent || showPreEtsConsent || showPreEtsEnrollment) {
             elements.otherFormsSection.classList.remove('hidden');
         } else {
             elements.otherFormsSection.classList.add('hidden');
@@ -931,6 +1003,12 @@ function initDOMElements() {
         preEtsCard: document.getElementById('preEtsCard'),
         educationalPlacementCard: document.getElementById('educationalPlacementCard'),
         mipApplicationCard: document.getElementById('mipApplicationCard'),
+        referralFormCard: document.getElementById('referralFormCard'),
+        employmentVerificationCard: document.getElementById('employmentVerificationCard'),
+        preEtsTravelConsentCard: document.getElementById('preEtsTravelConsentCard'),
+        preEtsMediaConsentCard: document.getElementById('preEtsMediaConsentCard'),
+        preEtsConsentCard: document.getElementById('preEtsConsentCard'),
+        preEtsEnrollmentCard: document.getElementById('preEtsEnrollmentCard'),
         // Auth elements
         loginScreen: document.getElementById('login-screen'),
         loginBtn: document.getElementById('login-btn'),
