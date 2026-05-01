@@ -482,7 +482,6 @@ function updateOtherFormsVisibility() {
     const showEducational = rules.educationalPlacement.includes(site);
     const showMip = rules.mipApplication.includes(site);
     const showReferral = rules.referralForm.includes(site);
-    const showEmploymentVerification = rules.employmentVerification.includes(site);
     const showPreEtsTravelConsent = rules.preEtsTravelConsent.includes(site);
     const showPreEtsMediaConsent = rules.preEtsMediaConsent.includes(site);
     const showPreEtsConsent = rules.preEtsConsent.includes(site);
@@ -501,9 +500,6 @@ function updateOtherFormsVisibility() {
     if (elements.referralFormCard) {
         elements.referralFormCard.style.display = showReferral ? 'flex' : 'none';
     }
-    if (elements.employmentVerificationCard) {
-        elements.employmentVerificationCard.style.display = showEmploymentVerification ? 'flex' : 'none';
-    }
     if (elements.preEtsTravelConsentCard) {
         elements.preEtsTravelConsentCard.style.display = showPreEtsTravelConsent ? 'flex' : 'none';
     }
@@ -519,7 +515,7 @@ function updateOtherFormsVisibility() {
 
     // Show/hide the entire Other Forms section if no forms apply
     if (elements.otherFormsSection) {
-        if (showPreEts || showEducational || showMip || showReferral || showEmploymentVerification || showPreEtsTravelConsent || showPreEtsMediaConsent || showPreEtsConsent || showPreEtsEnrollment) {
+        if (showPreEts || showEducational || showMip || showReferral || showPreEtsTravelConsent || showPreEtsMediaConsent || showPreEtsConsent || showPreEtsEnrollment) {
             elements.otherFormsSection.classList.remove('hidden');
         } else {
             elements.otherFormsSection.classList.add('hidden');
@@ -1005,7 +1001,6 @@ function initDOMElements() {
         educationalPlacementCard: document.getElementById('educationalPlacementCard'),
         mipApplicationCard: document.getElementById('mipApplicationCard'),
         referralFormCard: document.getElementById('referralFormCard'),
-        employmentVerificationCard: document.getElementById('employmentVerificationCard'),
         preEtsTravelConsentCard: document.getElementById('preEtsTravelConsentCard'),
         preEtsMediaConsentCard: document.getElementById('preEtsMediaConsentCard'),
         preEtsConsentCard: document.getElementById('preEtsConsentCard'),
